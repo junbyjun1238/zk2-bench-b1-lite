@@ -27,7 +27,7 @@
 \newcommand{\poly}{\mathrm{poly}}
 \newcommand{\negl}{\mathrm{negl}}
 
-\title{A Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers}
+\title{A Restricted-Model, Certificate-Assisted Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers}
 \author{}
 \date{}
 
@@ -35,27 +35,38 @@
 \maketitle
 
 \begin{abstract}
-This note studies a scope-limited class of deferred-quotient constraints in
-BN254 wrappers: non-negative normalized row templates, unsigned quotient ranges,
-and designated residue rows. In this scope, wrappers enforce identities of the
-form \(L=D+pQ\) inside \(R=\F_r\), with \(p:=p_{\mathrm{M31}}\). Since \(p\) is
+This note studies a restricted class of deferred-quotient constraints in BN254
+wrappers: normalized non-negative row templates, unsigned quotient ranges, and
+designated residue rows. The underlying deferred-quotient pathology is not
+specific to BN254: whenever the divisor \(p\) is invertible in the outer field,
+identities of the form \(L=D+pQ\) are rowwise-vacuous unless residue and
+quotient witnesses are additionally bound to small canonical integer ranges.
+The BN254 specialization enters only through the one-limb headroom inequalities,
+the chosen \(31/66\)-bit quotient classes, and the audited instantiated family
+constants.
+
+Within the restricted model above, wrappers enforce identities of the form
+\(L=D+pQ\) inside \(R=\F_r\), with \(p:=p_{\mathrm{M31}}\). Since \(p\) is
 invertible in \(R\), such identities are rowwise-vacuous on \(\Omega\) unless
-residue and quotient witnesses are additionally bound to small canonical integer
-ranges. We present a native BN254 canonical-lift binding layer (residue,
+residue and quotient witnesses are additionally bound to small canonical
+integer ranges. We present a native BN254 canonical-binding layer (residue,
 quotient, and carry range checks plus audited no-wrap bounds) that, under
 explicit rowwise premises, upgrades satisfied field equalities to exact
 Euclidean-division statements in \(\Z\) on designated residue rows, thereby
 excluding the rowwise \(p^{-1}\)-witness vacuity class in this restricted
-model. The synthesis interface is exposed as explicit public certificates
+model.
+
+The synthesis interface is exposed as explicit public certificates
 (audit/coverage/wiring) with a partially machine-checkable artifact/checker:
 the released checker verifies bounds, wiring, row-activity metadata, and digest
-integrity, while template/realization coherence remains a published symbolic
-proof obligation. Accordingly, the main result is a certified rowwise exactness
-theorem for a restricted class of deferred-quotient BN254 wrapper
+integrity, while family-by-family template/realization coherence is proved in
+the manuscript and is not mechanically checked in this release. Accordingly,
+the main result is a restricted-model, certificate-assisted rowwise exactness
+theorem for a concrete audited class of deferred-quotient BN254 wrapper
 arithmetizations, not a backend-independent wrapper soundness theorem. Full
 wrapper-level cryptographic closure (transcript binding, degree discipline,
 Fiat--Shamir soundness, backend composition) remains backend-dependent and is
-out of scope. This note targets a class of deferred-quotient wrapper
+out of scope. This note targets a restricted class of deferred-quotient wrapper
 arithmetizations over BN254; it does not claim a flaw in BN254 itself or in
 Halo2 as a proof system.
 \end{abstract}
@@ -143,6 +154,91 @@ cryptographic theorem for any particular internal-witness wrapper backend.
 Closing transcript-binding, degree, and Fiat--Shamir/soundness assumptions is a
 separate compilation task.
 
+\subsection{Deliverable, verification status, and claim boundary}
+\label{subsec:deliverable-status}
+
+The deliverable of this note is a \emph{restricted-model, certificate-assisted,
+partially machine-checked rowwise algebraic theorem}. To make the claim boundary
+explicit, we separate the ingredients proved in the manuscript from the parts
+checked by the released artifact and from the backend-level claims that are not
+asserted here.
+
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Layer / statement & Status in this note & Verification mode \\
+\hline
+Rowwise vacuity diagnosis & closed & manuscript proof \\
+\hline
+Canonical-lift exactness theorem & closed & manuscript proof \\
+\hline
+Family bound reconstruction / headroom inequalities & closed for current instance & deterministic checker \\
+\hline
+Selector-level quotient / residue / carry coverage & closed for current instance & deterministic checker \\
+\hline
+Row-activity metadata / inactive-row zero extension / digest binding & closed for current instance & deterministic checker \\
+\hline
+Family-by-family template / realization coherence & closed for current family set & manuscript proof only \\
+\hline
+Transcript binding / degree discipline / Fiat--Shamir closure & not claimed here & out of scope \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{Terminology update.}
+In this revision, we use \emph{certificate-assisted} for statements whose
+numerical and wiring components are mechanically checked while the remaining
+familywise symbolic coherence step is proved in the manuscript. We do not use
+\emph{certified} to mean fully mechanized end-to-end verification.
+
+\begin{proposition}[The deferred-quotient vacuity pathology is outer-field generic]
+\label{prop:outer-field-generic-vacuity}
+Let \(F\) be any field, let \(p\in F^\times\), and let
+\[
+\Omega=\{\omega^0,\omega^1,\dots,\omega^{m-1}\}\subset F
+\]
+be a finite row domain. For arbitrary rowwise values
+\[
+(L[j],D[j])_{j=0}^{m-1}\subset F^2,
+\]
+define
+\[
+Q[j]:=p^{-1}\bigl(L[j]-D[j]\bigr)\in F
+\quad\text{for }j=0,\dots,m-1,
+\]
+and let \(Q(X)\) be the unique degree-\(<m\) interpolant through
+\((Q[j])_{j=0}^{m-1}\). Then
+\[
+L[j]-D[j]-pQ(\omega^j)=0
+\quad\text{for all }j=0,\dots,m-1.
+\]
+Hence, absent additional range binding or canonical-lift premises, the rowwise
+identity \(L=D+pQ\) carries no intended integer-division semantics over any
+outer field in which \(p\) is invertible.
+\end{proposition}
+
+\begin{proof}
+For each \(j\),
+\[
+pQ(\omega^j)=pQ[j]=L[j]-D[j]
+\]
+by the definition of the row values \(Q[j]\) and the interpolant \(Q(X)\).
+Therefore
+\[
+L[j]-D[j]-pQ(\omega^j)=0
+\]
+for every row \(j\).
+\end{proof}
+
+\begin{remark}[Role of the BN254 specialization]
+\label{rem:bn254-parameter-role}
+Proposition~\ref{prop:outer-field-generic-vacuity} shows that the vacuity
+phenomenon addressed in this note is not specific to BN254. The BN254
+specialization enters only through the concrete one-limb headroom inequalities,
+the chosen \(31/66\)-bit quotient classes, and the instantiated family audit
+constants used by the repair.
+\end{remark}
+
 \paragraph{Restricted model covered by this note.}
 The claims proved here apply only to the restricted deferred-quotient model
 explicitly described in this manuscript: normalized non-negative row templates,
@@ -154,7 +250,7 @@ instance, this means the audited families
 \]
 Families whose satisfying assignments require signed quotient ranges, negative
 normalizations, or a different residue convention are outside the scope of this
-repair note. Thus the main theorem should be read as a certified
+repair note. Thus the main theorem should be read as a certificate-assisted
 restricted-model theorem, not as a generic statement about arbitrary BN254
 wrapper arithmetizations.
 
@@ -657,19 +753,38 @@ We enforce local relations as
 L_t[j]=D_t[j]+pQ_t[j]\quad\text{in }R.
 \]
 
+\paragraph{Notation convention for the inverse family.}
+To avoid collision between the inverse-family multiplicative witness and the
+deferred quotient symbol, we write the former as \(y\) and reserve \(Q_t[j]\)
+exclusively for deferred quotient witnesses.
+
 For example:
 \begin{itemize}[leftmargin=2em]
     \item inverse row:
     \[
-    L = q\cdot d;
+    L = \wt{y}\,\wt{d},
+    \qquad
+    D = \wt{c},
+    \qquad
+    \wt{y}\,\wt{d} = \wt{c} + p\,\wt{Q}_{\mathrm{inv}};
     \]
     \item \(E\times F\) coordinate row:
     \[
-    L = \wt{x}_k\,\wt{a};
+    L = \wt{x}_k\,\wt{a},
+    \qquad
+    D = \wt{c},
+    \qquad
+    \wt{x}_k\,\wt{a} = \wt{c} + p\,\wt{Q}_{\mathrm{EF},k};
     \]
     \item \(E\times E\) coordinate row:
     \[
-    L = \sum_{i,j=0}^{3} m_{ij}^k\,\wt{x}_i\,\wt{y}_j.
+    L = \sum_{i,j=0}^{3} m_{ij}^k\,\wt{x}_i\,\wt{y}_j,
+    \qquad
+    D = \wt{c},
+    \qquad
+    \sum_{i,j=0}^{3} m_{ij}^k\,\wt{x}_i\,\wt{y}_j
+    =
+    \wt{c} + p\,\wt{Q}_{\mathrm{EE},k}.
     \]
 \end{itemize}
 Here \(m_{ij}^k\) denotes an audited non-negative normalized template
@@ -819,7 +934,7 @@ If additionally \(\wt{D_t[j]}\in I_p\), uniqueness of Euclidean division by
 \]
 \end{proof}
 
-\begin{theorem}[Certified rowwise no-vacuity in the restricted model]
+\begin{theorem}[Certificate-assisted rowwise no-vacuity in the restricted model]
 \label{thm:rowwise-no-vacuity}
 Assume the following four premises:
 \begin{enumerate}[label=(\Alph*),leftmargin=2em]
@@ -845,14 +960,11 @@ Assume the following four premises:
     In the released artifact/checker flow, the numerical and metadata side of
     this premise is mechanically verified from the public certificate.
     \item \textbf{Declared template/realization coherence.} On every active row,
-    the local realization expressions agree with the assigned audited
-    normalized template as specified by
-    Definition~\ref{def:template-realization-coherence}. This coherence bridge
-    is a published symbolic proof obligation; it is not fully mechanized by the
-    released checker. A worked end-to-end symbolic coherence derivation is given
-    for an \(E\times E\) row in Appendix~\ref{app:coverage-and-wiring}; the
-    remaining instantiated families (\(\mathrm{inv},\mathrm{EF},\mathrm{hor},\mathrm{car}\))
-    are structurally simpler and covered by the same symbolic certificate relation.
+    the local realization expressions agree with the assigned audited normalized
+    template as specified by Definition~\ref{def:template-realization-coherence}.
+    For the current manuscript instance, this premise is discharged family-by-family
+    in Appendix~\ref{app:familywise-coherence}. The released checker does not
+    mechanize this symbolic step.
     \item \textbf{Complete wiring/coverage.} Every instantiated
     quotient/residue/carry slot is covered exactly once by the intended binding
     rules (no omissions), as formalized by
@@ -917,11 +1029,14 @@ statement follows from Theorem~\ref{thm:core-rowwise-exactness}.
 \end{proof}
 
 \paragraph{Reading of the main theorem.}
-Theorem~\ref{thm:rowwise-no-vacuity} should therefore be read as a certified
-restricted-model theorem: under the stated binding, audit, wiring, and
-coherence premises, it upgrades satisfied deferred-quotient row identities to
-exact \(\Z\)-equalities and excludes the specific rowwise
-\(p^{-1}\)-witness vacuity class in this model.
+Theorem~\ref{thm:rowwise-no-vacuity} should therefore be read as a
+\emph{certificate-assisted, partially machine-checked restricted-model theorem}.
+Its algebraic exactness statement is proved in the manuscript; numerical bounds,
+wiring/coverage metadata, row-activity metadata, and digest integrity are
+checked deterministically by the released checker; and the remaining
+family-by-family template/realization coherence step is closed in the manuscript
+by Appendix~\ref{app:familywise-coherence}. No backend-independent cryptographic
+closure theorem is claimed here.
 
 \subsection{Extension to a concrete Halo2-style backend (discussion)}
 
@@ -957,6 +1072,12 @@ separate proof obligation.
 \end{remark}
 
 \subsection{Tier-2 circuit cost accounting}
+
+\paragraph{Logical dependency note.}
+The algebraic claims of this note do not depend on the circuit-shape comparison
+in this section or in Appendix~\ref{app:b1lite-supplement}. Those counts are
+supplementary engineering context only and are not part of the rowwise exactness
+proof package.
 
 The main arithmetic compression check \eqref{eq:main-compressed-check} is unchanged. The only additional cost is the canonical-binding layer above.
 Unless stated otherwise, all symbolic counts in this subsection are exact arithmetic-object counts under this
@@ -1300,7 +1421,7 @@ The simple algebraic repair in this model to eliminate the \(p^{-1}\)-based vacu
     \end{itemize}
 \end{enumerate}
 
-Within the restricted certified model above, this excludes the
+Within the restricted certificate-assisted model above, this excludes the
 \(p^{-1}\)-based vacuity class and realizes the missing canonical-lift property
 guarantee \(\mathcal{P}_{\mathrm{canon}}\) at the row level while keeping Tier-2
 arithmetic fully native over \(\F_r\). The additional wrapper
@@ -1310,7 +1431,7 @@ arithmetic-object count in this bookkeeping model is still given by
 Table~\ref{tab:canon-overhead-bench} and a cell-level qualitative comparison in
 Table~\ref{tab:binding-vs-bitdecomp}.
 
-At claim level, the note proves a certified rowwise exactness theorem for this
+At claim level, the note proves a certificate-assisted rowwise exactness theorem for this
 restricted model. The released checker machine-verifies
 bounds/wiring/metadata/digest integrity, while full symbolic
 template/realization coherence remains a published manuscript-level proof
@@ -1318,6 +1439,13 @@ obligation. Accordingly, this note does not by itself establish a
 backend-independent wrapper soundness theorem; wrapper-level cryptographic
 closure remains the separate backend-dependent task described in
 Remark~\ref{rem:wrapper-extension}.
+
+\paragraph{Final deliverable statement.}
+The deliverable of this note is therefore a restricted-model,
+certificate-assisted rowwise exactness theorem with partial mechanization of
+bounds, coverage, metadata, and digest binding. It is not a backend-independent
+wrapper soundness theorem, and its remaining familywise coherence step is proved
+in the manuscript rather than mechanically checked in the current release.
 
 \appendix
 
@@ -2370,6 +2498,205 @@ Finally, the coverage/wiring certificate assigns \(Q_{\mathrm{EE},k}\) to a
 ``selector \(\to\) realization \(\to\) normalized \((L,D,Q)\) \(\to\) bound
 \(\to\) quotient class'' chain used by the exactness argument.
 
+\subsection{Finite familywise closure of the coherence obligation for the current library}
+\label{app:familywise-coherence}
+
+We now discharge the remaining manuscript-level symbolic coherence obligation
+for the concrete instantiated family set
+\[
+\mathcal F_{\mathrm{inst}}
+:=
+\{\mathrm{inv},\mathrm{EF},\mathrm{EE},\mathrm{hor},\mathrm{car}\}.
+\]
+This subsection does not add a new backend claim. Its purpose is narrower:
+it replaces the earlier informal statement that the remaining families are
+``structurally simpler'' by a finite familywise catalogue and a direct
+family-by-family manuscript proof.
+
+\begin{definition}[Current local realization catalogue]
+\label{def:current-realization-catalogue}
+For the current manuscript instance, every active local scalar relation instance
+belongs to exactly one of the following families.
+
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \textbf{Inverse family.}
+    The local ranged tuple is
+    \[
+    (y,d,c,Q_{\mathrm{inv}}),
+    \]
+    with declared local realization expressions
+    \[
+    \mathcal L^{\mathrm{loc}}_{\mathrm{inv}}(y,d,c)=yd,
+    \qquad
+    \mathcal D^{\mathrm{loc}}_{\mathrm{inv}}(y,d,c)=c,
+    \qquad
+    \mathcal Q^{\mathrm{loc}}_{\mathrm{inv}}(y,d,c,Q_{\mathrm{inv}})=Q_{\mathrm{inv}}.
+    \]
+    The corresponding audited normalized template is
+    \[
+    L_{\mathrm{inv}}(y,d,c)=yd,
+    \qquad
+    D_{\mathrm{inv}}(y,d,c)=c.
+    \]
+
+    \item \textbf{\(E\times F\) family.}
+    For each coordinate \(k\in\{0,1,2,3\}\), the local ranged tuple is
+    \[
+    (x_0,x_1,x_2,x_3,a,c,Q_{\mathrm{EF},k}),
+    \]
+    with
+    \[
+    \mathcal L^{\mathrm{loc}}_{\mathrm{EF},k}=x_k a,
+    \qquad
+    \mathcal D^{\mathrm{loc}}_{\mathrm{EF},k}=c,
+    \qquad
+    \mathcal Q^{\mathrm{loc}}_{\mathrm{EF},k}=Q_{\mathrm{EF},k},
+    \]
+    and audited template
+    \[
+    L_{\mathrm{EF},k}=x_k a,
+    \qquad
+    D_{\mathrm{EF},k}=c.
+    \]
+
+    \item \textbf{\(E\times E\) family.}
+    For each coordinate \(k\in\{0,1,2,3\}\), the local ranged tuple is
+    \[
+    (x_0,x_1,x_2,x_3,y_0,y_1,y_2,y_3,c,Q_{\mathrm{EE},k}),
+    \]
+    with
+    \[
+    \mathcal L^{\mathrm{loc}}_{\mathrm{EE},k}
+    =
+    \sum_{i,j=0}^{3} m_{ij}^k\,x_i y_j,
+    \qquad
+    \mathcal D^{\mathrm{loc}}_{\mathrm{EE},k}=c,
+    \qquad
+    \mathcal Q^{\mathrm{loc}}_{\mathrm{EE},k}=Q_{\mathrm{EE},k},
+    \]
+    and audited template
+    \[
+    L_{\mathrm{EE},k}
+    =
+    \sum_{i,j=0}^{3} m_{ij}^k\,x_i y_j,
+    \qquad
+    D_{\mathrm{EE},k}=c.
+    \]
+
+    \item \textbf{Promoted-Horner family.}
+    Every active promoted-Horner scalar relation is one of the finitely many
+    subtemplates
+    \[
+    m_3=\rho a_3,
+    \qquad
+    h_2=a_2+m_3,
+    \qquad
+    m_2=\rho h_2,
+    \qquad
+    h_1=a_1+m_2,
+    \qquad
+    m_1=\rho h_1,
+    \qquad
+    s'=a_0+m_1,
+    \qquad
+    s=2a_0+a_1+a_2+a_3,
+    \]
+    taken coordinatewise. For the three fixed-\(\rho\) multiplication
+    subtemplates, the audited normalized coefficient lists are the pinned
+    non-negative coefficient tensors serialized in the public certificate, and
+    the local realization expressions use those same pinned coefficient tensors.
+    For the four linear subtemplates, the audited normalized templates are
+    exactly the displayed linear forms and the local realization expressions are
+    those same linear forms.
+
+    \item \textbf{Carry-normalization family.}
+    Let \(\mathcal T_{\mathrm{car}}\) denote the finite list of active
+    carry-normalization templates serialized in the public certificate. For each
+    \(\tau\in\mathcal T_{\mathrm{car}}\), the declared local realization
+    expression is a normalized non-negative linear form
+    \[
+    \mathcal L^{\mathrm{loc}}_{\mathrm{car},\tau}(\mathbf z)
+    =
+    \sum_{u\in\mathcal U_\tau}\lambda_{\tau,u} z_u,
+    \qquad
+    \mathcal D^{\mathrm{loc}}_{\mathrm{car},\tau}(\mathbf z)=c_\tau,
+    \qquad
+    \mathcal Q^{\mathrm{loc}}_{\mathrm{car},\tau}(\mathbf z)=Q_{\mathrm{car},\tau},
+    \]
+    where \(\lambda_{\tau,u}\in\Z_{\ge 0}\), \(\mathbf z\) ranges over the row's
+    declared residue/carry tuple, and the coefficient vector
+    \((\lambda_{\tau,u})_{u\in\mathcal U_\tau}\) is exactly the one recorded for
+    the corresponding audited normalized template in the public certificate.
+\end{enumerate}
+
+No active local scalar relation belongs to any family outside
+\(\mathcal F_{\mathrm{inst}}\).
+\end{definition}
+
+\begin{theorem}[Finite familywise closure of premise~\textnormal{(C)}]
+\label{thm:finite-familywise-coherence}
+Assume Definitions~\ref{def:selector-relation-realization},
+\ref{def:template-realization-coherence},
+\ref{def:template-audit-certificate}, and
+\ref{def:current-realization-catalogue}. Then premise~\textnormal{(C)} of
+Theorem~\ref{thm:rowwise-no-vacuity} reduces to a finite familywise symbolic
+equality check. More precisely, Definition~\ref{def:template-realization-coherence}
+holds for every active local scalar relation instance in the current
+instantiated family set
+\[
+\mathcal F_{\mathrm{inst}}
+=
+\{\mathrm{inv},\mathrm{EF},\mathrm{EE},\mathrm{hor},\mathrm{car}\}.
+\]
+\end{theorem}
+
+\begin{proof}
+Fix any active local scalar relation instance \((s,\rho,j)\). By
+Definition~\ref{def:current-realization-catalogue}, it belongs to exactly one
+of the five families listed there.
+
+If it is an \(\mathrm{inv}\), \(\mathrm{EF}\), or \(\mathrm{EE}\) instance,
+then the declared local realization expression and the audited normalized
+template are literally the same displayed polynomial, with the same quotient
+slot attached. Hence Definition~\ref{def:template-realization-coherence} holds
+immediately.
+
+If it is a \(\mathrm{hor}\) instance, then it is one of the seven promoted-Horner
+subtemplates listed in
+Definition~\ref{def:current-realization-catalogue}(iv). For the three
+fixed-\(\rho\) multiplication subtemplates, the local realization uses exactly
+the same pinned non-negative coefficient tensor as the audited normalized
+template recorded in the public certificate. For the four linear subtemplates,
+the local realization is exactly the same displayed linear form as the audited
+normalized template. Thus coherence holds term-by-term for every promoted-Horner
+active relation.
+
+If it is a \(\mathrm{car}\) instance, then by
+Definition~\ref{def:current-realization-catalogue}(v) the local realization
+expression is exactly the same normalized non-negative linear form as the
+audited template for the corresponding \(\tau\in\mathcal T_{\mathrm{car}}\),
+again with the same designated quotient slot. Hence coherence holds term-by-term.
+
+These five cases exhaust the active family set. Therefore
+Definition~\ref{def:template-realization-coherence} holds for every active local
+scalar relation instance in the current library.
+\end{proof}
+
+\begin{corollary}[Status of the coherence step in the current release]
+\label{cor:coherence-status-current-release}
+For the current manuscript instance, premise~\textnormal{(C)} of
+Theorem~\ref{thm:rowwise-no-vacuity} is closed at the manuscript level by
+Theorem~\ref{thm:finite-familywise-coherence}. The released checker does not
+mechanize this step; it verifies only the numerical and metadata parts described
+in Appendix~\ref{app:audit-certificate}.
+\end{corollary}
+
+\begin{proof}
+The manuscript-level symbolic closure is exactly
+Theorem~\ref{thm:finite-familywise-coherence}. The checker scope is the one
+stated in Appendix~\ref{app:audit-certificate}.
+\end{proof}
+
 \begin{lemma}[Exact evaluation of audited templates on active rows]
 \label{lem:exact-audited-template-evaluation}
 Assume Definitions~\ref{def:selector-relation-realization},
@@ -2442,6 +2769,24 @@ as the image of its exact integer value. Because all summands are non-negative
 and the total is \(<r\), addition does not wrap either, so the field evaluations
 coincide with the images in \(R\) of the total integer evaluations. The
 canonical lifts are therefore exactly the displayed integers.
+\end{proof}
+
+\begin{corollary}[Exact audited evaluation is closed for the full current family set]
+\label{cor:exact-audited-eval-full-family-set}
+In the current manuscript instance, Lemma~\ref{lem:exact-audited-template-evaluation}
+applies to every active local scalar relation instance in
+\[
+\mathcal F_{\mathrm{inst}}
+=
+\{\mathrm{inv},\mathrm{EF},\mathrm{EE},\mathrm{hor},\mathrm{car}\}.
+\]
+\end{corollary}
+
+\begin{proof}
+By Theorem~\ref{thm:finite-familywise-coherence}, the template/realization
+coherence premise required by Lemma~\ref{lem:exact-audited-template-evaluation}
+holds for every active family in the current instantiated library. The remaining
+premises of that lemma are already family-agnostic.
 \end{proof}
 
 \begin{lemma}[No omitted active local relation]
