@@ -7,7 +7,7 @@
                              "checker_path":  "scripts/check_public_certificate.py",
                              "checker_sha256":  "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
                              "manuscript_path":  "wrapper_note_option2.tex",
-                             "manuscript_sha256":  "4daf16e4bb08ff03e18d17f0d8dd9e5f8fc6808142cf4bef1b83cda80e4790ef"
+                             "manuscript_sha256":  "520a90170a7cd3088c0e1a5dd3fc1e55ae18865c968f04f184c0b072928abbe8"
                          },
     "fiat_shamir_schedule":  {
                                  "model":  "ROM",
@@ -31,3 +31,4 @@
                                 "note":  "This manifest pins one concrete backend profile for reproducible certificate/checker binding; full backend closure remains a separate proof obligation."
                             }
 }
+

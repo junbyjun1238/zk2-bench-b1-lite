@@ -251,7 +251,7 @@ violating the intended modulo-\(p\) semantics. For instance, take \(L=0\) and
 
 \subsection{Repair summary and claim level}
 
-The missing ingredient is a minimal realization of the canonical-lift
+The missing ingredient is a lightweight realization in this model of the canonical-lift
 property \(\mathcal{P}_{\mathrm{canon}}\): residue cells must be bound to
 their canonical integer ranges, and quotient/carry cells must be bounded as
 small integers, so that a field equality in \(R\) upgrades to an exact
@@ -300,7 +300,7 @@ is ubiquitous in PLONKish arithmetizations and their lookup-based range-check
 extensions~\cite{plonk2019,plookup2020,lookup-sok-2025}.
 Recent work on foreign-field arithmetic in PLONK studies tight headroom/no-wrap
 premises and their constraint costs under such bounds~\cite{foreignfield2025}.
-For an engineering codebase that includes non-native arithmetic gadgets in
+For a representative engineering codebase that includes non-native arithmetic gadgets in
 Halo2 circuits, see~\cite{halo2wrong}.
 
 Accordingly, we present this note as a simple \emph{algebraic repair} for
@@ -626,6 +626,8 @@ For example:
     L = \sum_{i,j=0}^{3} m_{ij}^k\,\wt{x}_i\,\wt{y}_j.
     \]
 \end{itemize}
+Here \(m_{ij}^k\) denotes an audited non-negative normalized template
+coefficient in the instantiated library, not a raw signed basis coefficient.
 
 To upgrade field equalities to integer equalities in a soundness proof, we require
 the range bound for \emph{all satisfying witnesses} (not only honest ones).
@@ -677,9 +679,17 @@ quotient (e.g., \(L_t < D_t\) on some satisfying rows) would require signed quot
 ranges or a different normalization scheme, and is outside the scope of this
 repair note.
 
+\paragraph{Horner-parameter convention.}
+Throughout this note, the promoted-Horner parameter \(\rho\) is a fixed public
+extension-field constant \(\rho\in\Ep\). It is not a witness cell and not an
+instance-dependent Fiat--Shamir challenge. The published
+audit/certificate payload is tied to this pinned value; changing \(\rho\)
+requires regenerating the promoted-Horner template specialization and its bound
+certificate payload.
+
 \begin{theorem}[Rowwise no-vacuity]
 \label{thm:rowwise-no-vacuity}
-Assume the following three premises (formalized by explicit constraints and
+Assume the following four premises (formalized by explicit constraints and
 appendix certificates):
 \begin{enumerate}[label=(\Alph*),leftmargin=2em]
     \item \textbf{Canonical binding.} Residue, quotient, and carry columns are
@@ -690,18 +700,22 @@ appendix certificates):
     \eqref{eq:bit-carry} or \eqref{eq:u8-lookup}. Canonical residue rows are
     exactly those rows whose \(D_t[j]\) is a designated residue witness cell
     \(c_t[j]\in I_p\).
-    \item \textbf{No-wrap audit and template/realization coherence.} The
-    template audit certificate, together with
-    Definitions~\ref{def:selector-relation-realization},
-    \ref{def:template-realization-coherence}, and
-    \ref{def:rowtable-zero-extension}, establishes exact active-row evaluation
-    and no-wrap bounds for all satisfying witnesses, as formalized by
-    Lemmas~\ref{lem:exact-audited-template-evaluation},
-    \ref{lem:row-range-from-audit}, and
+    \item \textbf{Audited no-wrap bounds and activity metadata (checker-verified).}
+    The template audit certificate together with
+    Definitions~\ref{def:selector-relation-realization} and
+    \ref{def:rowtable-zero-extension} provides the row-activity/no-wrap side of
+    the argument for all satisfying witnesses, as used in
+    Lemmas~\ref{lem:row-range-from-audit} and
     \ref{lem:rhs-nowrap-from-audit}
     (Appendix~\ref{app:audit-certificate} and
     Appendix~\ref{app:coverage-and-wiring}).
-    \item \textbf{Complete wiring.} Every instantiated quotient/residue/carry
+    \item \textbf{Declared template/realization coherence (manuscript-level symbolic obligation).}
+    Active-row local realization expressions are assumed to match their
+    assigned audited normalized templates as specified by
+    Definition~\ref{def:template-realization-coherence}; together with
+    Lemma~\ref{lem:exact-audited-template-evaluation}, this yields exact
+    active-row evaluation identities.
+    \item \textbf{Complete wiring (checker-verified).} Every instantiated quotient/residue/carry
     slot is covered exactly once by the intended binding rules (no omissions),
     as formalized by Definitions~\ref{def:complete-quotient-coverage},
     \ref{def:selector-quotient-wiring}, and
@@ -710,6 +724,9 @@ appendix certificates):
     \ref{lem:no-omitted-residue-carry-wire}
     (Appendix~\ref{app:coverage-and-wiring}).
 \end{enumerate}
+In the released artifact/checker flow, premises (B) and (D) are mechanically
+checked from certificate/manifest metadata, while premise (C) remains a
+manuscript-level symbolic proof obligation.
 Then every satisfied row relation of the form
 \begin{equation}
 L_t[j] = D_t[j] + pQ_t[j]
@@ -872,9 +889,11 @@ s = 2a_0+a_1+a_2+a_3,
 s' = a_0 + \rho(a_1+\rho(a_2+\rho a_3)),
 \]
 where \(\rho\) is the fixed Horner scalar parameter of the instantiated row
-family (not a free witness variable), incorporated into the normalized
-template-level coefficients used by the audit bounds.
-with exact intermediate variables
+family, with \(\rho\in\Ep\) pinned for the instantiated promoted-Horner family
+(not a witness variable and not an instance-dependent Fiat--Shamir challenge).
+Multiplications by \(\rho\) are compiled into fixed specialized templates
+recorded in the public audit payload.
+With exact intermediate variables
 \[
 m_3,\; h_2,\; m_2,\; h_1,\; m_1
 \]
@@ -1362,6 +1381,12 @@ Reproduction command:
 \texttt{python scripts/check\_public\_certificate.py --certificate certificates/public\_certificate.json --manuscript wrapper\_note\_option2.tex}.
 Pinned-instance check command:
 \texttt{python scripts/check\_public\_certificate.py --certificate certificates/public\_certificate.json --manuscript wrapper\_note\_option2.tex --backend-instance certificates/h2dq\_backend\_instance.json}.
+\paragraph{Backend-instance manifest role (reproducibility binding only).}
+The optional backend-instance manifest binds the certificate payload digest,
+checker hash, manuscript hash, and fixed backend schedule metadata for
+reproducibility. In this note, it is used only for artifact pinning and
+reproducible checker binding; it is not used as a standalone backend soundness
+theorem.
 
 \paragraph{Instantiated bounds for the current template library (current manuscript).}
 \begin{center}
@@ -1480,9 +1505,11 @@ carry normalization &
 \end{tabular}
 \end{center}
 
-The promoted-Horner maximum comes from multiplication sub-rows
-\(m_3=\rho a_3\), \(m_2=\rho h_2\), \(m_1=\rho h_1\), each of \(E\times E\)
-coordinate form. The linear Horner sub-rows
+The promoted-Horner maximum comes from fixed-\(\rho\) multiplication sub-rows
+\(m_3=\rho a_3\), \(m_2=\rho h_2\), \(m_1=\rho h_1\). In this note,
+\(\rho\in\Ep\) is pinned at template-instantiation time, and these specialized
+subtemplates are conservatively audited under the same bound regime as the
+\(E\times E\) coordinate family. The linear Horner sub-rows
 \(h_2=a_2+m_3\), \(h_1=a_1+m_2\), \(s'=a_0+m_1\), and
 \(s=2a_0+a_1+a_2+a_3\) are strictly smaller.
 
