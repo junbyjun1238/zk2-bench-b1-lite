@@ -1,36 +1,33 @@
-﻿{
-    "backend_instance_id":  "h2-dq-v1",
-    "backend_family":  "halo2-style plonkish lookup backend",
-    "instance_binding":  {
-                             "certificate_path":  "certificates/public_certificate.json",
-                             "certificate_payload_sha256":  "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
-                             "checker_path":  "scripts/check_public_certificate.py",
-                             "checker_sha256":  "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
-                             "manuscript_path":  "wrapper_note_option2.tex",
-                             "manuscript_sha256":  "2179b2b160b941472cb27780cb09ac4ae3571d00eeaea3b638f7c29dfb015602"
-                         },
-    "fiat_shamir_schedule":  {
-                                 "model":  "ROM",
-                                 "domain_separator":  "h2-dq-v1",
-                                 "challenge_order":  [
-                                                         {
-                                                             "name":  "lambda_vec",
-                                                             "description":  "aggregation coefficients (lambda_t)_t for N(X)"
-                                                         },
-                                                         {
-                                                             "name":  "zeta",
-                                                             "description":  "evaluation point for main compressed check",
-                                                             "constraint":  "zeta_not_in_Omega"
-                                                         }
-                                                     ]
-                             },
-    "acceptance_contract":  {
-                                "main_check_equation":  "sum_t lambda_t (l_t - d_t - p q_t) = h Z_Omega(zeta)",
-                                "rowwise_interface":  "Definition~def:compression-rowwise-rhs-consistency",
-                                "degree_discipline":  "deg(Q_t)\u003cm and backend-enforced committed polynomial degree bounds",
-                                "note":  "This manifest pins one concrete backend profile for reproducible certificate/checker binding; full backend closure remains a separate proof obligation."
-                            }
+{
+    "backend_instance_id": "h2-dq-v1",
+    "backend_family": "halo2-style plonkish lookup backend",
+    "instance_binding": {
+        "certificate_path": "certificates/public_certificate.json",
+        "certificate_payload_sha256": "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
+        "checker_path": "scripts/check_public_certificate.py",
+        "checker_sha256": "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
+        "manuscript_path": "wrapper_note_option2.tex",
+        "manuscript_sha256": "369a67fd4c459a3275ebf8abd8b467c459fb85a2fd176779e05d010afb5a51ae"
+    },
+    "fiat_shamir_schedule": {
+        "model": "ROM",
+        "domain_separator": "h2-dq-v1",
+        "challenge_order": [
+            {
+                "name": "lambda_vec",
+                "description": "aggregation coefficients (lambda_t)_t for N(X)"
+            },
+            {
+                "name": "zeta",
+                "description": "evaluation point for main compressed check",
+                "constraint": "zeta_not_in_Omega"
+            }
+        ]
+    },
+    "acceptance_contract": {
+        "main_check_equation": "sum_t lambda_t (l_t - d_t - p q_t) = h Z_Omega(zeta)",
+        "rowwise_interface": "Definition~def:compression-rowwise-rhs-consistency",
+        "degree_discipline": "deg(Q_t)<m and backend-enforced committed polynomial degree bounds",
+        "note": "This manifest pins one concrete backend profile for reproducible certificate/checker binding; full backend closure remains a separate proof obligation."
+    }
 }
-
-
-

@@ -179,10 +179,29 @@ so that \(L_t(\omega^j)-D_t(\omega^j)=pQ_t(\omega^j)\) holds on \(\Omega\).
 There is then a unique degree-\(<m\) interpolant through the chosen quotient
 row values, so the rowwise constraint carries no intended integer-division
 semantics unless quotient cells are bound to small integer ranges.
-Assuming the wrapper's rowwise/compression consistency interface
-(formalized later in
-Definition~\ref{def:compression-rowwise-rhs-consistency}), this rowwise vacuity
-extends directly to the polynomial quotient-check layer.
+
+\begin{definition}[Compression/rowwise interface consistency]
+\label{def:compression-rowwise-rhs-consistency}
+For each relation index \(t\), let \((L_t[j],D_t[j],Q_t[j])_{j\in\Omega}\) be the
+rowwise values defined by the realization rule of
+Definition~\ref{def:selector-relation-realization} together with the
+zero-extension rule of Definition~\ref{def:rowtable-zero-extension}.
+The wrapper compression layer uses the composition polynomials \(L_t(X),D_t(X)\)
+from the instantiated templates (as in the numerator definition above), and the
+quotient witness polynomial \(Q_t(X)\) interpolating \((Q_t[j])_{j\in\Omega}\).
+Consistency requires that
+\[
+L_t(\omega^j)=L_t[j],
+\qquad
+D_t(\omega^j)=D_t[j],
+\qquad
+Q_t(\omega^j)=Q_t[j]
+\quad\text{for all }j\in\{0,\dots,|\Omega|-1\}.
+\]
+\end{definition}
+
+Under Definition~\ref{def:compression-rowwise-rhs-consistency}, this rowwise
+vacuity extends directly to the polynomial quotient-check layer.
 
 \begin{proposition}[Polynomial-level vacuity under unbounded quotient witnesses]
 \label{prop:poly-level-vacuity}
@@ -637,26 +656,6 @@ We enforce local relations as
 \[
 L_t[j]=D_t[j]+pQ_t[j]\quad\text{in }R.
 \]
-
-\begin{definition}[Compression/rowwise interface consistency]
-\label{def:compression-rowwise-rhs-consistency}
-For each relation index \(t\), let \((L_t[j],D_t[j],Q_t[j])_{j\in\Omega}\) be the
-rowwise values defined by the realization rule of
-Definition~\ref{def:selector-relation-realization} together with the
-zero-extension rule of Definition~\ref{def:rowtable-zero-extension}.
-The wrapper compression layer uses the composition polynomials \(L_t(X),D_t(X)\)
-from the instantiated templates (as in the numerator definition above), and the
-quotient witness polynomial \(Q_t(X)\) interpolating \((Q_t[j])_{j\in\Omega}\).
-Consistency requires that
-\[
-L_t(\omega^j)=L_t[j],
-\qquad
-D_t(\omega^j)=D_t[j],
-\qquad
-Q_t(\omega^j)=Q_t[j]
-\quad\text{for all }j\in\{0,\dots,|\Omega|-1\}.
-\]
-\end{definition}
 
 For example:
 \begin{itemize}[leftmargin=2em]
@@ -1161,16 +1160,18 @@ M_{\mathrm{canon}}^{\mathrm{tot}}=28\,n(n-1),
 \mathrm{Lin}_{\mathrm{canon}}^{\mathrm{tot}}=30\,n(n-1).
 \]
 
-\paragraph{Asymptotic position versus full emulation.}
+\paragraph{Asymptotic position versus full emulation (contextual corollary).}
 Let \(N_{\mathrm{base}}\) denote the size of the original computation being
 wrapped, and \(m:=|\Omega|\) the wrapped transcript-table size. In the standard
-fractional-GKR setting discussed here:
+fractional-GKR schedule targeted by the companion construction, we adopt
 \[
 m=\Theta(\log^2 N_{\mathrm{base}}),
 \qquad
 R_{\mathrm{sc}}=\Theta(m).
 \]
-Hence the canonical-binding overhead is
+This note does not re-prove these schedule scalings; it uses them as contextual
+input to interpret the exact symbolic object counts above. Under this adopted
+schedule, the canonical-binding overhead is
 \[
 \Theta(R_{\mathrm{sc}})
 =
@@ -2542,8 +2543,9 @@ Miguel Ambrona, Denis Firsov, and Inigo Querejeta-Azurmendi.
 \bibitem{halo2wrong}
 Privacy Scaling Explorations.
 \newblock halo2wrong: wrong-circuit gadgets for Halo2 (including non-native arithmetic).
-\newblock GitHub repository.
-\newblock \url{https://github.com/privacy-scaling-explorations/halo2wrong}.
+\newblock GitHub repository, commit
+\texttt{3eaa2c4703a333e9695dc980bebf3445b7a9b141}.
+\newblock \url{https://github.com/privacy-scaling-explorations/halo2wrong/tree/3eaa2c4703a333e9695dc980bebf3445b7a9b141}.
 
 \end{thebibliography}
 \end{document}
