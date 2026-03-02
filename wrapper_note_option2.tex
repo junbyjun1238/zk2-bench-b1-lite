@@ -39,21 +39,25 @@ This note studies a scope-limited class of deferred-quotient constraints in
 BN254 wrappers: non-negative normalized row templates, unsigned quotient ranges,
 and designated residue rows. In this scope, wrappers enforce identities of the
 form \(L=D+pQ\) inside \(R=\F_r\), with \(p:=p_{\mathrm{M31}}\). Since \(p\) is
-invertible in \(R\), these identities are rowwise-vacuous on \(\Omega\) unless
-residue and quotient witnesses are bound to small canonical integer ranges.
-We present a native BN254 canonical-lift binding layer (residue/quotient/carry
-range checks plus audited no-wrap bounds) that upgrades field equalities to
-exact Euclidean-division statements in \(\Z\) under explicit premises, excluding
-the rowwise \(p^{-1}\)-based vacuity class in this restricted model. The
-synthesis interface is exposed as explicit public certificates
+invertible in \(R\), such identities are rowwise-vacuous on \(\Omega\) unless
+residue and quotient witnesses are additionally bound to small canonical integer
+ranges. We present a native BN254 canonical-lift binding layer (residue,
+quotient, and carry range checks plus audited no-wrap bounds) that, under
+explicit rowwise premises, upgrades satisfied field equalities to exact
+Euclidean-division statements in \(\Z\) on designated residue rows, thereby
+excluding the rowwise \(p^{-1}\)-witness vacuity class in this restricted
+model. The synthesis interface is exposed as explicit public certificates
 (audit/coverage/wiring) with a partially machine-checkable artifact/checker:
-the released checker verifies bounds, wiring, metadata, and digest integrity,
-while template/realization coherence remains a published symbolic proof
-obligation. Full wrapper-level cryptographic closure (transcript binding,
-degree discipline, Fiat--Shamir soundness, backend composition) remains
-backend-dependent and is out of scope. This note targets a class of
-deferred-quotient wrapper arithmetizations over BN254; it does not claim a flaw
-in BN254 itself or in Halo2 as a proof system.
+the released checker verifies bounds, wiring, row-activity metadata, and digest
+integrity, while template/realization coherence remains a published symbolic
+proof obligation. Accordingly, the main result is a certified rowwise exactness
+theorem for a restricted class of deferred-quotient BN254 wrapper
+arithmetizations, not a backend-independent wrapper soundness theorem. Full
+wrapper-level cryptographic closure (transcript binding, degree discipline,
+Fiat--Shamir soundness, backend composition) remains backend-dependent and is
+out of scope. This note targets a class of deferred-quotient wrapper
+arithmetizations over BN254; it does not claim a flaw in BN254 itself or in
+Halo2 as a proof system.
 \end{abstract}
 
 \section{Deferred-Quotient Vacuity and a Rowwise Exactness Repair}
@@ -139,6 +143,21 @@ cryptographic theorem for any particular internal-witness wrapper backend.
 Closing transcript-binding, degree, and Fiat--Shamir/soundness assumptions is a
 separate compilation task.
 
+\paragraph{Restricted model covered by this note.}
+The claims proved here apply only to the restricted deferred-quotient model
+explicitly described in this manuscript: normalized non-negative row templates,
+unsigned quotient ranges, designated residue rows, and the audited instantiated
+family set recorded in the public certificate. In the current manuscript
+instance, this means the audited families
+\[
+\{\mathrm{inv},\mathrm{EF},\mathrm{EE},\mathrm{hor},\mathrm{car}\}.
+\]
+Families whose satisfying assignments require signed quotient ranges, negative
+normalizations, or a different residue convention are outside the scope of this
+repair note. Thus the main theorem should be read as a certified
+restricted-model theorem, not as a generic statement about arbitrary BN254
+wrapper arithmetizations.
+
 \subsection{Vulnerability: deferred-quotient vacuity in \(R\)}
 
 The deferred-quotient layer aims to represent rowwise Euclidean division by
@@ -167,23 +186,27 @@ extends directly to the polynomial quotient-check layer.
 
 \begin{proposition}[Polynomial-level vacuity under unbounded quotient witnesses]
 \label{prop:poly-level-vacuity}
-Fix a relation index \(t\). Assume the standard degree profile
+Fix a relation index \(t\) and a witness assignment determining composition
+polynomials
 \[
-\deg L_t,\deg D_t \le 2m-2,
-\qquad
-\deg Q_t < m,
+L_t(X),D_t(X)\in R[X]
 \]
-and that quotient witnesses are not range-bound. For arbitrary row values
-\((L_t[j],D_t[j])_{j\in\Omega}\), define
+with
 \[
-Q_t[j] := p^{-1}\bigl(L_t[j]-D_t[j]\bigr)\in R,
+\deg L_t,\deg D_t \le 2m-2.
 \]
-let \(Q_t(X)\) be the unique degree-\(<m\) interpolant through
+Assume quotient witnesses are not range-bound. For each row \(\omega^j\in\Omega\),
+define
+\[
+Q_t[j] := p^{-1}\bigl(L_t(\omega^j)-D_t(\omega^j)\bigr)\in R,
+\]
+let \(Q_t(X)\) be the unique degree-\(<m\) interpolant through the row values
 \((Q_t[j])_{j\in\Omega}\), and set
 \[
 R_t(X):=L_t(X)-D_t(X)-pQ_t(X).
 \]
-Then \(R_t(\omega^j)=0\) for all \(j\in\Omega\), so \(Z_\Omega\mid R_t\). Moreover
+Then \(R_t(\omega^j)=0\) for all \(j\in\{0,\dots,m-1\}\), so \(Z_\Omega\mid R_t\).
+Moreover
 \[
 \deg R_t\le 2m-2,
 \]
@@ -196,21 +219,32 @@ alone does not enforce intended Euclidean-division semantics.
 \end{proposition}
 
 \begin{proof}
-By construction of \(Q_t[j]\), each row satisfies
+For each \(j\),
 \[
-L_t[j]-D_t[j]-pQ_t[j]=0.
+pQ_t(\omega^j)=pQ_t[j]=L_t(\omega^j)-D_t(\omega^j)
 \]
-By Definition~\ref{def:compression-rowwise-rhs-consistency}, these are exactly
-the evaluations \(R_t(\omega^j)\), so \(R_t\) vanishes on \(\Omega\), hence
-\(Z_\Omega\mid R_t\). The degree bound follows from
-\(\deg L_t,\deg D_t\le 2m-2\) and \(\deg(pQ_t)<m\). Since
-\(\deg Z_\Omega = m\), the quotient degree bound \(\deg H_t\le m-2\) follows.
+by construction of the interpolated quotient values. Hence
+\[
+R_t(\omega^j)=L_t(\omega^j)-D_t(\omega^j)-pQ_t(\omega^j)=0
+\]
+for all \(\omega^j\in\Omega\), so \(Z_\Omega\mid R_t\). The degree bound follows
+from
+\[
+\deg L_t,\deg D_t\le 2m-2,\qquad \deg(pQ_t)<m.
+\]
+Since \(\deg Z_\Omega=m\), the quotient degree bound \(\deg H_t\le m-2\) follows.
 \end{proof}
+
+\paragraph{Evaluation-level formulation.}
+Proposition~\ref{prop:poly-level-vacuity} is intentionally stated directly in
+terms of the actual composition evaluations
+\(L_t(\omega^j),D_t(\omega^j)\). It therefore isolates the vacuity phenomenon
+without depending on any later row-table serialization convention.
 
 \begin{corollary}[Aggregated numerator vacuity under unbounded quotient witnesses]
 \label{cor:aggregated-vacuity}
 Let \(\mathcal I\) be a finite relation-index set. For each \(t\in\mathcal I\),
-assume the setup of Proposition~\ref{prop:poly-level-vacuity} and define
+assume the setup of Proposition~\ref{prop:poly-level-vacuity}, and define
 \[
 R_t(X):=L_t(X)-D_t(X)-pQ_t(X).
 \]
@@ -231,10 +265,12 @@ has degree \(\le m-2\).
 
 \begin{proof}
 For each \(t\), Proposition~\ref{prop:poly-level-vacuity} gives \(Z_\Omega\mid R_t\).
-Hence \(Z_\Omega\) divides any \(R\)-linear combination \(\sum_t \lambda_t R_t\),
+Hence \(Z_\Omega\) divides every \(R\)-linear combination \(\sum_t\lambda_tR_t\),
 proving \(Z_\Omega\mid N\). The degree bound follows from
 \(\deg R_t\le 2m-2\) for each \(t\), so \(\deg N\le 2m-2\), and then
-\(\deg H_N\le (2m-2)-m=m-2\).
+\[
+\deg H_N\le (2m-2)-m=m-2.
+\]
 \end{proof}
 
 \paragraph{Terminology.}
@@ -582,11 +618,22 @@ contradiction. Therefore \(\wt q\not\equiv -p^{-1}\pmod r\).
 
 \subsection{Exact row soundness}
 
-Let \(\wt{L_t[j]}\) denote the intended integer left-hand side of the \(t\)-th
-local identity on row \(j\), and let \(L_t[j]\in R\) denote its image in \(R\).
-Similarly let \(\wt{D_t[j]}\) denote the normalized non-negative integer
-right-hand side term (before adding \(p\wt{Q_t[j]}\)), and let \(D_t[j]\in R\)
-denote its image in \(R\). We enforce local relations as
+For each active row relation, once a local realization is matched to an audited
+normalized template and all participating cells are canonically range-bound, we
+write
+\[
+\wt{L_t[j]},\qquad \wt{D_t[j]},\qquad \wt{Q_t[j]}
+\]
+for the corresponding audited/canonical integer evaluations. Concretely, on
+active rows these are the integers supplied by
+Definition~\ref{def:template-realization-coherence} together with
+Lemma~\ref{lem:exact-audited-template-evaluation}; on inactive rows they are
+zero by Definition~\ref{def:rowtable-zero-extension}. Their images in \(R\) are
+denoted
+\[
+L_t[j],\qquad D_t[j],\qquad Q_t[j].
+\]
+We enforce local relations as
 \[
 L_t[j]=D_t[j]+pQ_t[j]\quad\text{in }R.
 \]
@@ -679,6 +726,26 @@ quotient (e.g., \(L_t < D_t\) on some satisfying rows) would require signed quot
 ranges or a different normalization scheme, and is outside the scope of this
 repair note.
 
+\paragraph{Worked normalization example.}
+A simple illustration is a row relation initially written as
+\[
+x_0+x_1-x_2 \equiv 0 \pmod p,
+\]
+where \(x_0,x_1,x_2\) are designated residue cells. In the restricted model of
+this note, such a relation is compiled to the non-negative deferred-quotient
+form
+\[
+x_0+x_1 = x_2 + p q,
+\]
+with \(x_2\in I_p\) and \(q\in\{0,1\}\), because
+\[
+0\le x_0+x_1\le 2(p-1)<2p.
+\]
+This is the kind of normalization covered by the present repair note. By
+contrast, families whose satisfying assignments force negative quotients or a
+signed remainder convention require a different normalization scheme and are
+outside the present scope.
+
 \paragraph{Horner-parameter convention.}
 Throughout this note, the promoted-Horner parameter \(\rho\) is a fixed public
 extension-field constant \(\rho\in\Ep\). It is not a witness cell and not an
@@ -687,10 +754,53 @@ audit/certificate payload is tied to this pinned value; changing \(\rho\)
 requires regenerating the promoted-Horner template specialization and its bound
 certificate payload.
 
-\begin{theorem}[Rowwise no-vacuity]
+\begin{theorem}[Core rowwise exactness from canonical lifts]
+\label{thm:core-rowwise-exactness}
+Fix a satisfied row relation
+\[
+L_t[j]=D_t[j]+pQ_t[j]\quad\text{in }R.
+\]
+Assume there exists \(B_t\in\{2^{31},2^{66}\}\) and integers
+\(\wt{L_t[j]},\wt{D_t[j]},\wt{Q_t[j]}\) such that:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \(L_t[j]\), \(D_t[j]\), and \(Q_t[j]\) are the images in \(R\) of
+    \(\wt{L_t[j]}\), \(\wt{D_t[j]}\), and \(\wt{Q_t[j]}\), respectively;
+    \item
+    \[
+    0\le \wt{L_t[j]}<r;
+    \]
+    \item
+    \[
+    0\le \wt{Q_t[j]}<B_t;
+    \]
+    \item
+    \[
+    0\le \wt{D_t[j]}+p\,\wt{Q_t[j]}<r.
+    \]
+\end{enumerate}
+Then
+\[
+\wt{L_t[j]}=\wt{D_t[j]}+p\,\wt{Q_t[j]}
+\quad\text{in }\Z.
+\]
+If additionally \(\wt{D_t[j]}\in I_p\), then
+\[
+\wt{D_t[j]}=\wt{L_t[j]}\bmod p,
+\qquad
+\wt{Q_t[j]}=\left\lfloor\frac{\wt{L_t[j]}}{p}\right\rfloor.
+\]
+\end{theorem}
+
+\begin{proof}
+This is exactly Lemma~\ref{lem:bounded-quotient-exactness} applied with
+\[
+L:=L_t[j],\qquad D:=D_t[j],\qquad q:=Q_t[j],\qquad B:=B_t.
+\]
+\end{proof}
+
+\begin{theorem}[Certified rowwise no-vacuity in the restricted model]
 \label{thm:rowwise-no-vacuity}
-Assume the following four premises (formalized by explicit constraints and
-appendix certificates):
+Assume the following four premises:
 \begin{enumerate}[label=(\Alph*),leftmargin=2em]
     \item \textbf{Canonical binding.} Residue, quotient, and carry columns are
     range-bound by the binding constraints
@@ -700,40 +810,41 @@ appendix certificates):
     \eqref{eq:bit-carry} or \eqref{eq:u8-lookup}. Canonical residue rows are
     exactly those rows whose \(D_t[j]\) is a designated residue witness cell
     \(c_t[j]\in I_p\).
-    \item \textbf{Audited no-wrap bounds and activity metadata (checker-verified).}
-    The template audit certificate together with
-    Definitions~\ref{def:selector-relation-realization} and
-    \ref{def:rowtable-zero-extension} provides the row-activity/no-wrap side of
-    the argument for all satisfying witnesses, as used in
-    Lemmas~\ref{lem:row-range-from-audit} and
-    \ref{lem:rhs-nowrap-from-audit}
-    (Appendix~\ref{app:audit-certificate} and
-    Appendix~\ref{app:coverage-and-wiring}).
-    \item \textbf{Declared template/realization coherence (manuscript-level symbolic obligation).}
-    Active-row local realization expressions are assumed to match their
-    assigned audited normalized templates as specified by
-    Definition~\ref{def:template-realization-coherence}; together with
-    Lemma~\ref{lem:exact-audited-template-evaluation}, this yields exact
-    active-row evaluation identities.
-    \item \textbf{Complete wiring (checker-verified).} Every instantiated quotient/residue/carry
-    slot is covered exactly once by the intended binding rules (no omissions),
-    as formalized by Definitions~\ref{def:complete-quotient-coverage},
+    \item \textbf{Audited no-wrap bounds.} For every active matched family \(f\),
+    the published audit certificate yields
+    \[
+    0\le \wt{L_t[j]}\le U_f^{\mathrm{audit}} < pB_f+p<r
+    \]
+    and
+    \[
+    0\le \wt{D_t[j]}\le U_f^{D,\mathrm{audit}},
+    \qquad
+    U_f^{D,\mathrm{audit}}+p(B_f-1)<r.
+    \]
+    In the released artifact/checker flow, the numerical and metadata side of
+    this premise is mechanically verified from the public certificate.
+    \item \textbf{Declared template/realization coherence.} On every active row,
+    the local realization expressions agree with the assigned audited
+    normalized template as specified by
+    Definition~\ref{def:template-realization-coherence}. This coherence bridge
+    is a published symbolic proof obligation; it is not fully mechanized by the
+    released checker.
+    \item \textbf{Complete wiring/coverage.} Every instantiated
+    quotient/residue/carry slot is covered exactly once by the intended binding
+    rules (no omissions), as formalized by
+    Definitions~\ref{def:complete-quotient-coverage},
     \ref{def:selector-quotient-wiring}, and
-    \ref{def:selector-residue-carry-wiring} and
-    Lemmas~\ref{lem:no-omitted-quotient-wire} and
-    \ref{lem:no-omitted-residue-carry-wire}
-    (Appendix~\ref{app:coverage-and-wiring}).
+    \ref{def:selector-residue-carry-wiring}. In the released artifact/checker
+    flow, this coverage/wiring premise is mechanically verified from the public
+    manifest/certificate metadata.
 \end{enumerate}
-In the released artifact/checker flow, premises (B) and (D) are mechanically
-checked from certificate/manifest metadata, while premise (C) remains a
-manuscript-level symbolic proof obligation.
-Then every satisfied row relation of the form
+Then for every satisfied row relation
 \begin{equation}
 L_t[j] = D_t[j] + pQ_t[j]
-\quad\text{in }R
+\quad\text{in }R,
 \label{eq:row-relation-R}
 \end{equation}
-is an exact integer identity
+the hypotheses of Theorem~\ref{thm:core-rowwise-exactness} hold. Consequently,
 \begin{equation}
 \wt{L_t[j]} = \wt{D_t[j]} + p\,\wt{Q_t[j]}
 \quad\text{in }\Z.
@@ -745,41 +856,48 @@ and \(Q_t[j]\) is the exact Euclidean quotient.
 
 \begin{proof}
 Fix any row relation \((t,j)\) satisfying \eqref{eq:row-relation-R}. By
-canonical binding and Lemmas~\ref{lem:no-omitted-quotient-wire} and
+canonical binding together with
+Lemmas~\ref{lem:no-omitted-quotient-wire} and
 \ref{lem:no-omitted-residue-carry-wire}, every quotient/residue/carry cell
 participating in that row admits a canonical integer lift in its declared
 interval.
 
-If \(j\notin\Omega_t\), then Definition~\ref{def:rowtable-zero-extension}
-gives
+If \(j\notin\Omega_t\), then Definition~\ref{def:rowtable-zero-extension} gives
 \[
 L_t[j]=D_t[j]=Q_t[j]=0,
 \]
-so \eqref{eq:row-relation-Z} is immediate.
+so the hypotheses of Theorem~\ref{thm:core-rowwise-exactness} are immediate.
 
 Assume now \(j\in\Omega_t\). By
 Definition~\ref{def:template-realization-coherence} and
 Lemma~\ref{lem:exact-audited-template-evaluation}, the values \(L_t[j]\) and
-\(D_t[j]\) are the images in \(R\) of the exact integer evaluations of the
-matched audited normalized template. By
+\(D_t[j]\) are the images in \(R\) of exact audited integer evaluations. By
 Lemma~\ref{lem:row-range-from-audit},
 \[
-0\le \wt{L_t[j]} < pB_t+p<r.
+0\le \wt{L_t[j]} < pB_t+p<r
+\]
+for the class \(B_t\) of the matched family. By
+Lemma~\ref{lem:no-omitted-quotient-wire} together with
+Definition~\ref{def:family-quotient-class-coherence},
+\[
+0\le \wt{Q_t[j]}<B_t.
 \]
 By Lemma~\ref{lem:rhs-nowrap-from-audit},
 \[
 0\le \wt{D_t[j]}+p\wt{Q_t[j]}<r.
 \]
-Hence Lemma~\ref{lem:bounded-quotient-exactness} applies to
-\eqref{eq:row-relation-R} and upgrades it to the exact integer identity
+Thus all hypotheses of Theorem~\ref{thm:core-rowwise-exactness} hold, yielding
 \eqref{eq:row-relation-Z}. On canonical residue rows, the designated residue
-cell \(c_t[j]=D_t[j]\) lies in \(I_p\), so uniqueness of Euclidean division
-yields the final statement.
+cell \(c_t[j]=D_t[j]\) lies in \(I_p\), so the final Euclidean-division
+statement follows from Theorem~\ref{thm:core-rowwise-exactness}.
 \end{proof}
 
-Theorem~\ref{thm:rowwise-no-vacuity} shows that the proposed binding layer
-realizes the abstract canonical-lift property guarantee
-\(\mathcal{P}_{\mathrm{canon}}\) that was missing in the vacuity analysis.
+\paragraph{Reading of the main theorem.}
+Theorem~\ref{thm:rowwise-no-vacuity} should therefore be read as a certified
+restricted-model theorem: under the stated binding, audit, wiring, and
+coherence premises, it upgrades satisfied deferred-quotient row identities to
+exact \(\Z\)-equalities and excludes the specific rowwise
+\(p^{-1}\)-witness vacuity class in this model.
 
 \subsection{Extension to a concrete Halo2-style backend (discussion)}
 
@@ -1156,21 +1274,23 @@ The simple algebraic repair in this model to eliminate the \(p^{-1}\)-based vacu
     \end{itemize}
 \end{enumerate}
 
-This removes the \(p^{-1}\)-based vacuity, realizes the missing canonical-lift
-property guarantee \(\mathcal{P}_{\mathrm{canon}}\), and keeps Tier-2 arithmetic fully native over
-\(\F_r\). The additional wrapper arithmetic-object count in this bookkeeping
-model is given by
+Within the restricted certified model above, this excludes the
+\(p^{-1}\)-based vacuity class and realizes the missing canonical-lift property
+guarantee \(\mathcal{P}_{\mathrm{canon}}\) at the row level while keeping Tier-2
+arithmetic fully native over \(\F_r\). The additional wrapper
+arithmetic-object count in this bookkeeping model is still given by
 \eqref{eq:total-lookup-cost}, \eqref{eq:total-mul-cost}, and
 \eqref{eq:total-lin-cost}, with representative instantiations in
-Table~\ref{tab:canon-overhead-bench} and cell-level qualitative comparison in
+Table~\ref{tab:canon-overhead-bench} and a cell-level qualitative comparison in
 Table~\ref{tab:binding-vs-bitdecomp}.
 
-At claim level, the rowwise exactness package is explicitly specified in this
-note (including the template/realization coherence bridge connecting audited
-integer templates to actual row-table values). The released checker
-machine-verifies bounds/wiring/metadata/digest integrity, while full symbolic
-realization/template coherence remains a manuscript-level proof obligation.
-Wrapper-level cryptographic soundness is discussed only briefly in
+At claim level, the note proves a certified rowwise exactness theorem for this
+restricted model. The released checker machine-verifies
+bounds/wiring/metadata/digest integrity, while full symbolic
+template/realization coherence remains a published manuscript-level proof
+obligation. Accordingly, this note does not by itself establish a
+backend-independent wrapper soundness theorem; wrapper-level cryptographic
+closure remains the separate backend-dependent task described in
 Remark~\ref{rem:wrapper-extension}.
 
 \appendix
