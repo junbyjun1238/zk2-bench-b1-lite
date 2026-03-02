@@ -49,7 +49,9 @@ synthesis interface is exposed as explicit public certificates
 (audit/coverage/wiring) with a machine-readable artifact and deterministic
 checker. Full wrapper-level cryptographic closure (transcript binding,
 degree discipline, Fiat--Shamir soundness, backend composition) remains
-backend-dependent and is out of scope.
+backend-dependent and is out of scope. This note targets a class of
+deferred-quotient wrapper arithmetizations over BN254; it does not claim a flaw
+in BN254 itself or in Halo2 as a proof system.
 \end{abstract}
 
 \section{Deferred-Quotient Vacuity and a Rowwise Exactness Repair}
@@ -156,6 +158,10 @@ so that \(L_t(\omega^j)-D_t(\omega^j)=pQ_t(\omega^j)\) holds on \(\Omega\).
 There is then a unique degree-\(<m\) interpolant through the chosen quotient
 row values, so the rowwise constraint carries no intended integer-division
 semantics unless quotient cells are bound to small integer ranges.
+Assuming the wrapper's rowwise/compression consistency interface
+(formalized later in
+Definition~\ref{def:compression-rowwise-rhs-consistency}), this rowwise vacuity
+extends directly to the polynomial quotient-check layer.
 
 \begin{proposition}[Polynomial-level vacuity under unbounded quotient witnesses]
 \label{prop:poly-level-vacuity}
@@ -532,7 +538,8 @@ If additionally \(\wt{D}\in I_p\), then necessarily
 \end{lemma}
 
 \begin{proof}
-By (iv), both \(\wt{L}\) and \(\wt{D}+p\wt{q}\) lie in \([0,r)\). Using (v),
+By (i) and (iv), both \(\wt{L}\) and \(\wt{D}+p\wt{q}\) lie in \([0,r)\). Using
+(v),
 \[
 L-(D+pq)=0 \text{ in }R
 \]
@@ -833,7 +840,7 @@ The instance is valid only if the checker
 \texttt{certificates/public\_certificate.json} and this manifest.
 \end{definition}
 
-\begin{theorem}[Pinned-backend closure for \(\mathsf{H2\text{-}DQ\_v1}\)]
+\begin{theorem}[Conditional pinned-backend closure for \(\mathsf{H2\text{-}DQ\_v1}\)]
 \label{thm:backend-instantiated-closure}
 Assume the pinned instance of Definition~\ref{def:h2-dq-instance} and the
 following backend assumptions:
@@ -867,6 +874,10 @@ deferred-quotient row relation is an exact Euclidean-division statement in
 \(\Z\), and the rowwise \(p^{-1}\)-based vacuity witness class is excluded for
 the pinned backend instance.
 \end{theorem}
+
+\paragraph{Interpretation.}
+Theorem~\ref{thm:backend-instantiated-closure} is a pinned-instance conditional
+closure statement, not a standalone Halo2 soundness theorem.
 
 \begin{proof}
 By (H2a), constraints and metadata conditions of
@@ -1384,8 +1395,9 @@ wired to a column in \(\mathcal Q_{31}\) if \(B_f=2^{31}\), and to a column in
 \(\mathcal Q_{66}\) if \(B_f=2^{66}\).
 \end{definition}
 
-\paragraph{Deterministic verifier for the audit certificate.}
-Given the certificate data, the verifier performs the following checks:
+\paragraph{Symbolic certificate verifier relation (manuscript-level).}
+Given the certificate data, the manuscript-level symbolic verifier relation
+requires the following checks:
 \begin{enumerate}[label=(\arabic*),leftmargin=2em]
     \item for each template \((f,\tau)\), parse \(L_{f,\tau}\) and \(D_{f,\tau}\),
     and ensure all certified coefficients are in \(\Z_{\ge 0}\);
@@ -1402,13 +1414,12 @@ Given the certificate data, the verifier performs the following checks:
     \item verify the template map \(\omega_T\) is total and functional on all
     active local scalar relation instances \((s,\rho,j)\), that each such
     instance is matched to exactly one template \((f,\tau)\) with
-    \(\tau\in\mathcal T_f\), that the corresponding local realization
-    expressions agree with the matched normalized template polynomials as
-    required by Definition~\ref{def:template-realization-coherence}, and that
-    quotient-slot class tags are coherent with \(B_f\) as required by
+    \(\tau\in\mathcal T_f\), and that quotient-slot class tags are coherent
+    with \(B_f\) as required by
     Definition~\ref{def:family-quotient-class-coherence}.
 \end{enumerate}
-All checks are deterministic and independent of prover-provided runtime values.
+These checks define the manuscript-level symbolic certificate relation and are
+deterministic and independent of prover-provided runtime values.
 
 \paragraph{Machine-readable public certificate and checker.}
 For this manuscript package we publish a concrete machine-readable public
@@ -1424,11 +1435,18 @@ The checker deterministically:
     \(U_f^{D,\mathrm{audit}}+p(B_f-1)<r\);
     \item verifies quotient/non-quotient coverage and selector-level wiring
     single-valued mapping/class consistency;
-    \item verifies relation/row-activity metadata consistency and inactive-row
-    zero-extension flags;
+    \item verifies relation-template reference integrity
+    (\texttt{relation\_id}\(\mapsto\)(\texttt{template\_family},
+    \texttt{template\_id})), relation/row-activity metadata consistency, and
+    inactive-row zero-extension flags;
     \item verifies digest binding between the certificate payload and the
     manuscript hash.
 \end{enumerate}
+In this release, the deterministic checker does \emph{not} mechanize full
+symbolic equality validation of declared local realization expressions against
+normalized template polynomials; that coherence relation remains specified as a
+published symbolic certificate relation (Definition~\ref{def:template-realization-coherence}
+and Lemma~\ref{lem:exact-audited-template-evaluation}).
 Reproduction command:
 \texttt{python scripts/check\_public\_certificate.py --certificate certificates/public\_certificate.json --manuscript wrapper\_note\_option2.tex}.
 Pinned-instance check command:
@@ -1929,6 +1947,11 @@ Combining gives the claim.
 \label{app:coverage-and-wiring}
 This appendix records the explicit quotient inventory and selector-level
 wiring certificates as public synthesis metadata.
+\paragraph{Serialization granularity note.}
+In the released certificate schema, wiring maps are serialized at
+selector-slot granularity because the instantiated layout is row-invariant on
+active rows. Accordingly, row indices are omitted from wiring-map blocks and
+captured separately by \texttt{row\_activity} metadata.
 
 \subsection{Coverage certificate (explicit inventory)}
 
@@ -2424,31 +2447,36 @@ because lookup batching and gate packing can place multiple objects in one row.
 The lookup-cell ratio goes in the opposite direction, matching the design goal
 of this repair layer: trading multiplicative constraints for batched native
 lookups.\footnote{Artifact repository:
-\url{https://github.com/junbyjun1238/zk2-bench-b1-lite}
-(commit \texttt{8bd2a25}).
+\url{https://github.com/junbyjun1238/zk2-bench-b1-lite}.
 Relevant files are \texttt{src/main.rs} and \texttt{results.md}. Reproduce by
-running \texttt{cargo run --release}.}
+running \texttt{cargo run --release}. Exact artifact binding for this note is
+given by the published certificate/manifests and checker command in
+Appendix~\ref{app:audit-certificate}.}
 
 % END OPTION2 APPENDICES
 
 \begin{thebibliography}{99}
 
 \bibitem{plonk2019}
+Ariel Gabizon, Zachary J. Williamson, and Oana Ciobotaru.
 \newblock PLONK: Permutations over Lagrange-bases for Oecumenical Noninteractive arguments of Knowledge.
 \newblock IACR ePrint 2019/953, 2019.
 \newblock \url{https://eprint.iacr.org/2019/953}.
 
 \bibitem{plookup2020}
+Ariel Gabizon and Zachary J. Williamson.
 \newblock Plookup: A simplified polynomial protocol for lookup tables.
 \newblock IACR ePrint 2020/315, 2020.
 \newblock \url{https://eprint.iacr.org/2020/315}.
 
 \bibitem{lookup-sok-2025}
-SoK: Lookup Table Arguments in Zero-Knowledge Proof Systems.
+Hossein Hafezi, Gaspard Anthoine, Matteo Campanelli, and Dario Fiore.
+\newblock SoK: Lookup Table Arguments.
 \newblock IACR ePrint 2025/1876, 2025.
 \newblock \url{https://eprint.iacr.org/2025/1876}.
 
 \bibitem{foreignfield2025}
+Miguel Ambrona, Denis Firsov, and Inigo Querejeta-Azurmendi.
 \newblock Efficient Foreign-Field Arithmetic in PLONK.
 \newblock IACR ePrint 2025/695, 2025.
 \newblock \url{https://eprint.iacr.org/2025/695}.

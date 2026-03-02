@@ -1,9 +1,9 @@
 {
   "metadata": {
     "schema_version": "1.0.0",
-    "note_title": "Deferred-Quotient Vacuity in BN254 Wrappers: A Rowwise Exactness Repair Note",
+    "note_title": "A Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers",
     "manuscript_file": "wrapper_note_option2.tex",
-    "manuscript_sha256": "3ef1203b1b88b8a8339472d43726c33c28e0d4a1a9b3c06b1ef28042b05190df",
+    "manuscript_sha256": "12db8f7f30ea3a5d417207a8c71992b83b3709a057af8babb2da496423040953",
     "generated_on": "2026-03-02"
   },
   "payload": {
@@ -1126,6 +1126,6 @@
   },
   "digest_binding": {
     "payload_sha256": "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
-    "manuscript_sha256": "3ef1203b1b88b8a8339472d43726c33c28e0d4a1a9b3c06b1ef28042b05190df"
+    "manuscript_sha256": "12db8f7f30ea3a5d417207a8c71992b83b3709a057af8babb2da496423040953"
   }
 }
