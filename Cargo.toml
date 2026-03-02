@@ -1,0 +1,9 @@
+[package]
+name = "bench_b1_lite"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+halo2_proofs = "0.3.2"
+halo2curves = "0.9.0"
+rand = "0.8"
