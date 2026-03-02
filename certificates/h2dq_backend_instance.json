@@ -7,7 +7,7 @@
                              "checker_path":  "scripts/check_public_certificate.py",
                              "checker_sha256":  "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
                              "manuscript_path":  "wrapper_note_option2.tex",
-                             "manuscript_sha256":  "e7469113f27efc3c2a2a93187a554b00c36f6da1c4e9244009d9078390f9b8dd"
+                             "manuscript_sha256":  "3ef1203b1b88b8a8339472d43726c33c28e0d4a1a9b3c06b1ef28042b05190df"
                          },
     "fiat_shamir_schedule":  {
                                  "model":  "ROM",
