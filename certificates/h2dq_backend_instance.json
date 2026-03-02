@@ -7,7 +7,7 @@
                              "checker_path":  "scripts/check_public_certificate.py",
                              "checker_sha256":  "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
                              "manuscript_path":  "wrapper_note_option2.tex",
-                             "manuscript_sha256":  "12db8f7f30ea3a5d417207a8c71992b83b3709a057af8babb2da496423040953"
+                             "manuscript_sha256":  "4daf16e4bb08ff03e18d17f0d8dd9e5f8fc6808142cf4bef1b83cda80e4790ef"
                          },
     "fiat_shamir_schedule":  {
                                  "model":  "ROM",
@@ -28,7 +28,6 @@
                                 "main_check_equation":  "sum_t lambda_t (l_t - d_t - p q_t) = h Z_Omega(zeta)",
                                 "rowwise_interface":  "Definition~def:compression-rowwise-rhs-consistency",
                                 "degree_discipline":  "deg(Q_t)\u003cm and backend-enforced committed polynomial degree bounds",
-                                "note":  "This manifest pins one concrete backend profile used by Theorem~thm:backend-instantiated-closure."
+                                "note":  "This manifest pins one concrete backend profile for reproducible certificate/checker binding; full backend closure remains a separate proof obligation."
                             }
 }
-

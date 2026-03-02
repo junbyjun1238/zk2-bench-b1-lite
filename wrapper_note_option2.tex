@@ -46,8 +46,10 @@ range checks plus audited no-wrap bounds) that upgrades field equalities to
 exact Euclidean-division statements in \(\Z\) under explicit premises, excluding
 the rowwise \(p^{-1}\)-based vacuity class in this restricted model. The
 synthesis interface is exposed as explicit public certificates
-(audit/coverage/wiring) with a machine-readable artifact and deterministic
-checker. Full wrapper-level cryptographic closure (transcript binding,
+(audit/coverage/wiring) with a partially machine-checkable artifact/checker:
+the released checker verifies bounds, wiring, metadata, and digest integrity,
+while template/realization coherence remains a published symbolic proof
+obligation. Full wrapper-level cryptographic closure (transcript binding,
 degree discipline, Fiat--Shamir soundness, backend composition) remains
 backend-dependent and is out of scope. This note targets a class of
 deferred-quotient wrapper arithmetizations over BN254; it does not claim a flaw
@@ -298,10 +300,10 @@ is ubiquitous in PLONKish arithmetizations and their lookup-based range-check
 extensions~\cite{plonk2019,plookup2020,lookup-sok-2025}.
 Recent work on foreign-field arithmetic in PLONK studies tight headroom/no-wrap
 premises and their constraint costs under such bounds~\cite{foreignfield2025}.
-For an engineering illustration of quotient/remainder witnesses plus limb range
-checks in a Halo2 circuit, see~\cite{halo2hackmdnote}.
+For an engineering codebase that includes non-native arithmetic gadgets in
+Halo2 circuits, see~\cite{halo2wrong}.
 
-Accordingly, we present this note as a minimal \emph{algebraic repair} for
+Accordingly, we present this note as a simple \emph{algebraic repair} for
 deferred-quotient BN254 wrappers: our novelty is not a new foreign-field gadget
 per se, but the diagnosis and repair of a specific algebraic vacuity (the
 \(p^{-1}\) attack) via an explicit canonical-lift binding and public audit/wiring
@@ -786,112 +788,14 @@ later by Definition~\ref{def:compression-rowwise-rhs-consistency}.
 \begin{remark}[Backend-dependent closure boundary]
 \label{rem:wrapper-extension}
 Theorem~\ref{thm:rowwise-no-vacuity} is the core algebraic repair in this note.
-A fully closed cryptographic wrapper theorem additionally requires a concrete
-backend argument establishing transcript binding/extraction and degree discipline
-for the polynomials appearing in \eqref{eq:main-compressed-check}, as well as
-soundness preservation under Fiat--Shamir. Under such backend-specific
-properties, the repair upgrades satisfied deferred-quotient row identities to
-exact Euclidean division in \(\Z\), ruling out the \(p^{-1}\)-based vacuity
-attack in the composed system.
+A fully closed cryptographic wrapper theorem additionally requires a separate
+backend proof of transcript binding/extraction, degree discipline for
+\eqref{eq:main-compressed-check}, and Fiat--Shamir soundness.
+This note does not prove such a backend-closure theorem.
+Instead, the companion artifact provides a pinned backend manifest only for
+reproducible certificate/checker binding, while full backend closure remains a
+separate proof obligation.
 \end{remark}
-
-\begin{definition}[Concrete backend profile \(\mathsf{H2\text{-}DQ}\)]
-\label{def:h2-dq-profile}
-Fix the concrete Halo2-style circuit family implementing this note (same
-selector layout, lookup tables, and row-table schema as the public certificate
-\texttt{certificates/public\_certificate.json}). We say an accepted proof
-satisfies profile \(\mathsf{H2\text{-}DQ}\) if extraction/binding for that
-backend yields witness columns such that:
-\begin{enumerate}[label=(\roman*),leftmargin=2em]
-    \item all canonical-binding gate/lookup constraints hold rowwise:
-    \eqref{eq:residue-recompose}--\eqref{eq:residue-not-p},
-    \eqref{eq:q31-recompose}--\eqref{eq:q31-lookups},
-    \eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}, and
-    \eqref{eq:bit-carry}/\eqref{eq:u8-lookup};
-    \item coverage/wiring/row-activity metadata matches the published
-    certificate and passes the deterministic checker
-    \texttt{scripts/check\_public\_certificate.py};
-    \item for every relation index \(t\) and every active row \(j\in\Omega_t\),
-    the pair \((t,j)\) satisfies
-    \(L_t[j]=D_t[j]+pQ_t[j]\) in \(R\), and inactive row-table entries satisfy
-    Definition~\ref{def:rowtable-zero-extension};
-    \item the committed polynomials in \eqref{eq:main-compressed-check} are
-    degree-disciplined and consistent with extracted row-table values under
-    Definition~\ref{def:compression-rowwise-rhs-consistency}.
-\end{enumerate}
-\end{definition}
-
-\begin{definition}[Pinned backend instance \(\mathsf{H2\text{-}DQ\_v1}\)]
-\label{def:h2-dq-instance}
-We pin one concrete backend instance by the manifest
-\texttt{certificates/h2dq\_backend\_instance.json}, which binds:
-\begin{enumerate}[label=(\roman*),leftmargin=2em]
-    \item the public certificate payload digest
-    (\texttt{certificate\_payload\_sha256}),
-    \item the deterministic checker script hash
-    (\texttt{checker\_sha256}),
-    \item the manuscript hash (\texttt{manuscript\_sha256}),
-    \item the Fiat--Shamir challenge schedule:
-    sample \(\lambda=(\lambda_t)_t\) first, then sample
-    \(\zeta\in R\setminus\Omega\) (domain separator \texttt{h2-dq-v1}).
-\end{enumerate}
-The instance is valid only if the checker
-\texttt{scripts/check\_public\_certificate.py} accepts both
-\texttt{certificates/public\_certificate.json} and this manifest.
-\end{definition}
-
-\begin{theorem}[Conditional pinned-backend closure for \(\mathsf{H2\text{-}DQ\_v1}\)]
-\label{thm:backend-instantiated-closure}
-Assume the pinned instance of Definition~\ref{def:h2-dq-instance} and the
-following backend assumptions:
-\begin{enumerate}[label=(H\arabic*),leftmargin=2em]
-    \item \textbf{Extraction/binding for accepted proofs.}
-    Every accepted proof yields extracted witness columns and committed
-    polynomials consistent with the backend commitments.
-    \item \textbf{Algebraic acceptance contract.}
-    For extracted objects, the backend verifier acceptance implies:
-    \begin{enumerate}[label=(\alph*),leftmargin=2em]
-        \item all constraints of Definition~\ref{def:h2-dq-profile}(i)--(iii)
-        hold;
-        \item the compressed check \eqref{eq:main-compressed-check} holds at the
-        extracted challenge pair \((\lambda,\zeta)\) sampled in the fixed
-        schedule of Definition~\ref{def:h2-dq-instance}.
-    \end{enumerate}
-    \item \textbf{Degree discipline.}
-    Extracted committed polynomials satisfy the declared degree bounds,
-    including \(\deg Q_t<m\), and the rowwise/compression interface of
-    Definition~\ref{def:compression-rowwise-rhs-consistency}.
-    \item \textbf{Fiat--Shamir theorem for the pinned instance.}
-    In the ROM, non-interactive accepted proofs fail to realize (H1)--(H3) with
-    probability at most \(\epsilon_{\mathrm{H2DQ}}(\kappa)\), where
-    \(\epsilon_{\mathrm{H2DQ}}\) is negligible in the security parameter
-    \(\kappa\).
-\end{enumerate}
-Then, except with probability at most
-\(\epsilon_{\mathrm{H2DQ}}(\kappa)\), accepted proofs satisfy premises (A)--(C)
-of Theorem~\ref{thm:rowwise-no-vacuity}. Consequently each active
-deferred-quotient row relation is an exact Euclidean-division statement in
-\(\Z\), and the rowwise \(p^{-1}\)-based vacuity witness class is excluded for
-the pinned backend instance.
-\end{theorem}
-
-\paragraph{Interpretation.}
-Theorem~\ref{thm:backend-instantiated-closure} is a pinned-instance conditional
-closure statement, not a standalone Halo2 soundness theorem.
-
-\begin{proof}
-By (H2a), constraints and metadata conditions of
-Definition~\ref{def:h2-dq-profile}(i)--(iii) hold for extracted objects; by
-Definition~\ref{def:h2-dq-instance} these metadata checks are concretely bound
-to the pinned certificate/checker artifact. Together with (H1), this
-instantiates premises (A)--(C) of Theorem~\ref{thm:rowwise-no-vacuity}. By
-(H2b) and (H3), the compressed acceptance equation and degree/interface
-conditions are available in the extracted transcript under the fixed challenge
-schedule. Therefore Theorem~\ref{thm:rowwise-no-vacuity} applies to every active
-row relation and yields exact Euclidean semantics in \(\Z\). The only residual
-failure event is the Fiat--Shamir failure of (H4), bounded by
-\(\epsilon_{\mathrm{H2DQ}}(\kappa)\).
-\end{proof}
 
 \subsection{Tier-2 circuit cost accounting}
 
@@ -967,6 +871,9 @@ s = 2a_0+a_1+a_2+a_3,
 \qquad
 s' = a_0 + \rho(a_1+\rho(a_2+\rho a_3)),
 \]
+where \(\rho\) is the fixed Horner scalar parameter of the instantiated row
+family (not a free witness variable), incorporated into the normalized
+template-level coefficients used by the audit bounds.
 with exact intermediate variables
 \[
 m_3,\; h_2,\; m_2,\; h_1,\; m_1
@@ -1218,7 +1125,7 @@ claims or main quantitative evidence.
 
 \subsection{Summary}
 
-The minimum algebraic repair to eliminate the \(p^{-1}\)-based vacuity is:
+The simple algebraic repair in this model to eliminate the \(p^{-1}\)-based vacuity is:
 \begin{enumerate}[label=(\arabic*),leftmargin=2em]
     \item retain the one-limb exact arithmetic over \(R\),
     \item keep the single compressed polynomial evaluation check \eqref{eq:main-compressed-check},
@@ -1239,10 +1146,13 @@ model is given by
 Table~\ref{tab:canon-overhead-bench} and cell-level qualitative comparison in
 Table~\ref{tab:binding-vs-bitdecomp}.
 
-At claim level, the rowwise exactness package is fully explicit in this note
-(including the template/realization coherence bridge connecting audited integer
-templates to actual row-table values), while wrapper-level cryptographic
-soundness is discussed only briefly in Remark~\ref{rem:wrapper-extension}.
+At claim level, the rowwise exactness package is explicitly specified in this
+note (including the template/realization coherence bridge connecting audited
+integer templates to actual row-table values). The released checker
+machine-verifies bounds/wiring/metadata/digest integrity, while full symbolic
+realization/template coherence remains a manuscript-level proof obligation.
+Wrapper-level cryptographic soundness is discussed only briefly in
+Remark~\ref{rem:wrapper-extension}.
 
 \appendix
 
@@ -1421,12 +1331,13 @@ requires the following checks:
 These checks define the manuscript-level symbolic certificate relation and are
 deterministic and independent of prover-provided runtime values.
 
-\paragraph{Machine-readable public certificate and checker.}
-For this manuscript package we publish a concrete machine-readable public
+\paragraph{Partially machine-checkable public certificate and checker.}
+For this manuscript package we publish a concrete public
 certificate
 \texttt{certificates/public\_certificate.json}
 and a deterministic checker
-\texttt{scripts/check\_public\_certificate.py}.
+\texttt{scripts/check\_public\_certificate.py}, yielding a partially
+machine-checkable certificate workflow.
 The checker deterministically:
 \begin{enumerate}[label=(\roman*),leftmargin=2em]
     \item reconstructs per-template bounds and family maxima;
@@ -2481,11 +2392,11 @@ Miguel Ambrona, Denis Firsov, and Inigo Querejeta-Azurmendi.
 \newblock IACR ePrint 2025/695, 2025.
 \newblock \url{https://eprint.iacr.org/2025/695}.
 
-\bibitem{halo2hackmdnote}
-SoraSuegami.
-\newblock Halo2 foreign-field quotient/remainder note.
-\newblock HackMD technical note.
-\newblock \url{https://hackmd.io/@SoraSuegami/By0JRu7zi}.
+\bibitem{halo2wrong}
+Privacy Scaling Explorations.
+\newblock halo2wrong: wrong-circuit gadgets for Halo2 (including non-native arithmetic).
+\newblock GitHub repository.
+\newblock \url{https://github.com/privacy-scaling-explorations/halo2wrong}.
 
 \end{thebibliography}
 \end{document}
