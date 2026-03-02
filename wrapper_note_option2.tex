@@ -1,0 +1,2463 @@
+﻿\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{bm}
+\usepackage{enumitem}
+\usepackage{url}
+\usepackage{hyperref}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{protocol}[theorem]{Protocol}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\R}{\mathbb{F}_r}
+\newcommand{\Fp}{\mathbb{F}_p}
+\newcommand{\Ep}{\mathbb{F}_{p^4}}
+\newcommand{\T}{\mathcal{T}}
+\newcommand{\Cset}{\mathcal{C}}
+\newcommand{\bits}{\{0,1\}}
+\newcommand{\wt}[1]{\widehat{#1}}
+\newcommand{\poly}{\mathrm{poly}}
+\newcommand{\negl}{\mathrm{negl}}
+
+\title{A Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This note studies a scope-limited class of deferred-quotient constraints in
+BN254 wrappers: non-negative normalized row templates, unsigned quotient ranges,
+and designated residue rows. In this scope, wrappers enforce identities of the
+form \(L=D+pQ\) inside \(R=\F_r\), with \(p:=p_{\mathrm{M31}}\). Since \(p\) is
+invertible in \(R\), these identities are rowwise-vacuous on \(\Omega\) unless
+residue and quotient witnesses are bound to small canonical integer ranges.
+We present a native BN254 canonical-lift binding layer (residue/quotient/carry
+range checks plus audited no-wrap bounds) that upgrades field equalities to
+exact Euclidean-division statements in \(\Z\) under explicit premises, excluding
+the rowwise \(p^{-1}\)-based vacuity class in this restricted model. The
+synthesis interface is exposed as explicit public certificates
+(audit/coverage/wiring) with a machine-readable artifact and deterministic
+checker. Full wrapper-level cryptographic closure (transcript binding,
+degree discipline, Fiat--Shamir soundness, backend composition) remains
+backend-dependent and is out of scope.
+\end{abstract}
+
+\section{Deferred-Quotient Vacuity and a Rowwise Exactness Repair}
+
+Let
+\[
+p := p_{\mathrm{M31}} = 2^{31}-1,
+\qquad
+R := \F_r,
+\]
+where \(R\) is the BN254 scalar field. We assume the one-limb headroom condition
+\[
+p\cdot 2^{66}+p < r.
+\]
+For \(p=2^{31}-1\), the left-hand side equals
+\[
+(2^{31}-1)(2^{66}+1)=2^{97}+2^{31}-2^{66}-1<2^{97},
+\]
+so this condition holds for BN254 scalar \(r\). This class-level headroom
+condition is sufficient for the one-limb \(31/66\)-bit quotient classes used
+below. Full family-specific left/right no-wrap bounds are discharged later by
+the public audit certificate in Appendix~\ref{app:audit-certificate}.
+
+Let
+\[
+\Omega = \{\omega^0,\omega^1,\dots,\omega^{m-1}\} \subset R
+\]
+be the public row domain indexing the target transcript tables, with size
+\[
+m := |\Omega|.
+\]
+
+We keep the deferred-quotient compression layer unchanged. For each scalar local
+constraint index \(t\), let
+\[
+L_t(X), D_t(X) \in R[X]
+\]
+denote the (potentially high-degree) \emph{composition polynomials} induced by
+the instantiated row templates, i.e., obtained by evaluating the row-template
+polynomials on the underlying degree-\(<m\) witness polynomials over \(\Omega\).
+Let
+\[
+Q_t(X) \in R[X]
+\]
+denote the low-degree quotient witness polynomial (so \(\deg Q_t < m\)) that
+interpolates the quotient row table on \(\Omega\). Define the aggregated
+numerator
+\[
+N(X) := \sum_t \lambda_t\bigl(L_t(X)-D_t(X)-pQ_t(X)\bigr),
+\]
+where \(\lambda_t\) are random aggregation coefficients sampled by the wrapper
+verifier (or via Fiat--Shamir in a non-interactive instantiation). Let
+\[
+Z_\Omega(X) := \prod_{u\in\Omega}(X-u)
+\]
+and let \(H(X)\in R[X]\) denote a prover-supplied witness polynomial. Whenever
+\(N\) vanishes on \(\Omega\), define the \emph{true} quotient
+\[
+H_{\mathrm{true}}(X) := \frac{N(X)}{Z_\Omega(X)}.
+\]
+
+\paragraph{Composition versus interpolant.}
+We emphasize that \(L_t(X)\) and \(D_t(X)\) above are \emph{not} defined as the
+unique degree-\(<m\) interpolants of the rowwise values \((L_t[j])_{j\in\Omega}\)
+and \((D_t[j])_{j\in\Omega}\). Under quadratic templates, the composition
+polynomials can have degree up to \(2m-2\), so \(N\) is genuinely high-degree
+and \(H_{\mathrm{true}}\) need not be identically zero on honest transcripts.
+
+\paragraph{Scope and claim boundary.}
+This manuscript is organized as a two-layer package:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item a rowwise exactness layer (canonical residues, quotient/carry range
+    binding, audited no-wrap bounds) culminating in
+    Theorem~\ref{thm:rowwise-no-vacuity};
+    \item a brief discussion (Remark~\ref{rem:wrapper-extension}) of how the
+    repair composes with a full wrapper system in concrete backends.
+\end{enumerate}
+The theorem proved here is a rowwise algebraic exactness theorem under explicit
+public synthesis certificates (audit bounds, realization coherence, and wiring
+coverage), not a full backend-independent wrapper soundness theorem.
+Accordingly, this note does \emph{not} claim a fully closed stand-alone
+cryptographic theorem for any particular internal-witness wrapper backend.
+Closing transcript-binding, degree, and Fiat--Shamir/soundness assumptions is a
+separate compilation task.
+
+\subsection{Vulnerability: deferred-quotient vacuity in \(R\)}
+
+The deferred-quotient layer aims to represent rowwise Euclidean division by
+\(p\) by enforcing field equalities of the form
+\[
+L_t(\omega^j)-D_t(\omega^j)=pQ_t(\omega^j)
+\]
+for all \(\omega^j\in\Omega\), where \(Q_t(X)\) is the degree-\(<m\) quotient
+witness polynomial interpolating the row-table values
+\((Q_t[j])_{j\in\Omega}\).
+Since \(p\) is invertible in \(R\), this rowwise constraint on \(\Omega\) is
+vacuous unless quotient values are additionally range-bound: for any
+row-table values \((L_t[j])_{j\in\Omega}\) and \((D_t[j])_{j\in\Omega}\) in \(R\),
+the prover can set
+\[
+Q_t[j]:=p^{-1}\bigl(L_t[j]-D_t[j]\bigr)\in R
+\]
+so that \(L_t(\omega^j)-D_t(\omega^j)=pQ_t(\omega^j)\) holds on \(\Omega\).
+There is then a unique degree-\(<m\) interpolant through the chosen quotient
+row values, so the rowwise constraint carries no intended integer-division
+semantics unless quotient cells are bound to small integer ranges.
+
+\begin{proposition}[Polynomial-level vacuity under unbounded quotient witnesses]
+\label{prop:poly-level-vacuity}
+Fix a relation index \(t\). Assume the standard degree profile
+\[
+\deg L_t,\deg D_t \le 2m-2,
+\qquad
+\deg Q_t < m,
+\]
+and that quotient witnesses are not range-bound. For arbitrary row values
+\((L_t[j],D_t[j])_{j\in\Omega}\), define
+\[
+Q_t[j] := p^{-1}\bigl(L_t[j]-D_t[j]\bigr)\in R,
+\]
+let \(Q_t(X)\) be the unique degree-\(<m\) interpolant through
+\((Q_t[j])_{j\in\Omega}\), and set
+\[
+R_t(X):=L_t(X)-D_t(X)-pQ_t(X).
+\]
+Then \(R_t(\omega^j)=0\) for all \(j\in\Omega\), so \(Z_\Omega\mid R_t\). Moreover
+\[
+\deg R_t\le 2m-2,
+\]
+hence the quotient
+\[
+H_t(X):=\frac{R_t(X)}{Z_\Omega(X)}
+\]
+has degree \(\le m-2\). Therefore the usual low-degree quotient-check layer
+alone does not enforce intended Euclidean-division semantics.
+\end{proposition}
+
+\begin{proof}
+By construction of \(Q_t[j]\), each row satisfies
+\[
+L_t[j]-D_t[j]-pQ_t[j]=0.
+\]
+By Definition~\ref{def:compression-rowwise-rhs-consistency}, these are exactly
+the evaluations \(R_t(\omega^j)\), so \(R_t\) vanishes on \(\Omega\), hence
+\(Z_\Omega\mid R_t\). The degree bound follows from
+\(\deg L_t,\deg D_t\le 2m-2\) and \(\deg(pQ_t)<m\). Since
+\(\deg Z_\Omega = m\), the quotient degree bound \(\deg H_t\le m-2\) follows.
+\end{proof}
+
+\begin{corollary}[Aggregated numerator vacuity under unbounded quotient witnesses]
+\label{cor:aggregated-vacuity}
+Let \(\mathcal I\) be a finite relation-index set. For each \(t\in\mathcal I\),
+assume the setup of Proposition~\ref{prop:poly-level-vacuity} and define
+\[
+R_t(X):=L_t(X)-D_t(X)-pQ_t(X).
+\]
+For coefficients \((\lambda_t)_{t\in\mathcal I}\subset R\), set
+\[
+N(X):=\sum_{t\in\mathcal I}\lambda_t R_t(X).
+\]
+Then \(Z_\Omega\mid N\). If additionally
+\[
+\deg L_t,\deg D_t\le 2m-2,\qquad \deg Q_t<m \quad (\forall t\in\mathcal I),
+\]
+then \(\deg N\le 2m-2\), and the quotient
+\[
+H_N(X):=\frac{N(X)}{Z_\Omega(X)}
+\]
+has degree \(\le m-2\).
+\end{corollary}
+
+\begin{proof}
+For each \(t\), Proposition~\ref{prop:poly-level-vacuity} gives \(Z_\Omega\mid R_t\).
+Hence \(Z_\Omega\) divides any \(R\)-linear combination \(\sum_t \lambda_t R_t\),
+proving \(Z_\Omega\mid N\). The degree bound follows from
+\(\deg R_t\le 2m-2\) for each \(t\), so \(\deg N\le 2m-2\), and then
+\(\deg H_N\le (2m-2)-m=m-2\).
+\end{proof}
+
+\paragraph{Terminology.}
+We refer to this pattern as a \emph{deferred-quotient} wrapper: modular
+reductions are enforced via identities of the form \(L=D+pQ\) in the outer
+field, deferring explicit non-native division to a range-binding layer.
+
+\paragraph{Toy counterexample (\(p^{-1}\) witness).}
+At the row level, if the circuit only enforces \(L=D+pQ\) in \(R\) with an
+unbounded quotient witness, a malicious prover can satisfy the check while
+violating the intended modulo-\(p\) semantics. For instance, take \(L=0\) and
+\(D=1\) in \(R\), and set \(Q:=-p^{-1}\bmod r\). Then \(0=1+p(-p^{-1})\) holds in
+\(R\) even though it does not encode any valid integer division statement.
+
+\subsection{Repair summary and claim level}
+
+The missing ingredient is a minimal realization of the canonical-lift
+property \(\mathcal{P}_{\mathrm{canon}}\): residue cells must be bound to
+their canonical integer ranges, and quotient/carry cells must be bounded as
+small integers, so that a field equality in \(R\) upgrades to an exact
+Euclidean-division statement in \(\Z\).
+\begin{definition}[Canonical-lift property guarantee]
+\label{def:f-canon}
+We say a binding layer realizes the canonical-lift property guarantee
+\(\mathcal{P}_{\mathrm{canon}}\) if, for every satisfying assignment:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item every designated residue cell is the image in \(R\) of an integer in
+    \(I_p=\{0,\dots,p-1\}\);
+    \item every designated quotient/carry cell is the image in \(R\) of an
+    integer in its declared small range (e.g., \(I_{31}\), \(I_{66}\),
+    \(\{0,1\}\), or \(\{0,\dots,7\}\));
+    \item for every satisfied deferred-quotient row relation
+    \(L_t[j]=D_t[j]+pQ_t[j]\) in \(R\), the row values admit canonical integer
+    lifts \(\wt{L_t[j]},\wt{D_t[j]},\wt{Q_t[j]}\) such that
+    \[
+    0\le \wt{L_t[j]}<r,
+    \qquad
+    0\le \wt{D_t[j]}+p\wt{Q_t[j]}<r;
+    \]
+    hence the relation holds as an exact identity in \(\Z\), and on designated
+    residue rows it encodes Euclidean division by \(p\).
+\end{enumerate}
+\end{definition}
+Concretely, this note realizes \(\mathcal{P}_{\mathrm{canon}}\) by adding only:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item exact residue canonicality in \([0,p-1]\) using \(31\)-bit limb
+    decomposition plus one exclusion gate;
+    \item coarse \(31\)-bit or \(66\)-bit bounds for quotient witnesses, and
+    tiny bounds for carries;
+    \item audited no-wrap bounds for all satisfying witnesses.
+\end{enumerate}
+These yield the main algebraic repair result, Theorem~\ref{thm:rowwise-no-vacuity}.
+We include only a brief remark on composing the repair with a full wrapper
+system (Remark~\ref{rem:wrapper-extension}).
+
+\subsection{Positioning and related work}
+
+This repair follows a standard non-native (foreign-field) arithmetic pattern:
+express modular reduction via an equality carrying an explicit
+quotient/remainder witness, and then range-bind those witnesses to small
+integer intervals so the equality has a unique \(\Z\)-semantics. This pattern
+is ubiquitous in PLONKish arithmetizations and their lookup-based range-check
+extensions~\cite{plonk2019,plookup2020,lookup-sok-2025}.
+Recent work on foreign-field arithmetic in PLONK studies tight headroom/no-wrap
+premises and their constraint costs under such bounds~\cite{foreignfield2025}.
+For an engineering illustration of quotient/remainder witnesses plus limb range
+checks in a Halo2 circuit, see~\cite{halo2hackmdnote}.
+
+Accordingly, we present this note as a minimal \emph{algebraic repair} for
+deferred-quotient BN254 wrappers: our novelty is not a new foreign-field gadget
+per se, but the diagnosis and repair of a specific algebraic vacuity (the
+\(p^{-1}\) attack) via an explicit canonical-lift binding and public audit/wiring
+certificates.
+
+\subsection{Column classes}
+
+We partition the witness columns into five classes:
+\begin{itemize}[leftmargin=2em]
+    \item \(\Cset_p\): residue columns that must lie in
+    \[
+    I_p := \{0,1,\dots,p-1\}.
+    \]
+    \item \(\Cset_{31}\): quotient columns that only need the coarse bound
+    \[
+    I_{31} := \{0,1,\dots,2^{31}-1\}.
+    \]
+    \item \(\Cset_{66}\): quotient columns that only need the coarse bound
+    \[
+    I_{66} := \{0,1,\dots,2^{66}-1\}.
+    \]
+    \item \(\Cset_{\mathrm{bit}}\): carry columns in \(\{0,1\}\).
+    \item \(\Cset_{8}\): small carry columns in \(\{0,1,\dots,7\}\).
+\end{itemize}
+
+The only exact canonicality requirement is for \(\Cset_p\). For quotient
+columns, it is enough to enforce a public upper bound strictly below \(r/p\) so
+that, together with RHS no-wrap and canonical remainder binding on designated
+residue rows, any equality of the form
+\[
+L = D + pQ
+\quad\text{in }R
+\]
+upgrades to an exact identity in \(\Z\). On those designated residue rows, this
+exact identity yields the unique Euclidean quotient and canonical remainder.
+
+\begin{definition}[Complete quotient coverage]
+\label{def:complete-quotient-coverage}
+Let \(\mathcal Q\) be the set of all quotient witness columns used by the
+target deferred-quotient arithmetization. There is a public class map
+\[
+\kappa:\mathcal Q \to \{31,66\},
+\]
+with induced partition
+\[
+\mathcal Q_{31}:=\kappa^{-1}(31),\qquad
+\mathcal Q_{66}:=\kappa^{-1}(66),
+\]
+such that
+\[
+\mathcal Q_{31}\cap\mathcal Q_{66}=\varnothing,\qquad
+\mathcal Q_{31}\cup\mathcal Q_{66}=\mathcal Q.
+\]
+Every row-local quotient symbol \(Q_t[j]\) is wired to exactly one column in
+\(\mathcal Q\). Columns in \(\mathcal Q_{31}\) are constrained by
+\eqref{eq:q31-recompose}--\eqref{eq:q31-lookups}; columns in \(\mathcal Q_{66}\)
+are constrained by \eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}.
+\end{definition}
+
+\paragraph{Certificate metadata (moved to appendix).}
+The deferred-quotient arithmetization comes with explicit public inventory and
+wiring certificates (quotient-class map, selector-level slot wiring, etc.). For
+readability, we move this compiler metadata to
+Appendix~\ref{app:coverage-and-wiring}.
+
+\subsection{Binding mechanism}
+\label{subsec:binding-mechanism}
+
+We now define the minimal binding constraints that realize \(\mathcal{P}_{\mathrm{canon}}\).
+
+\subsubsection{Exact canonical residues in \([0,p-1]\)}
+
+For every cell \(x = W[j]\) with \(W\in\Cset_p\), introduce two limb witnesses
+\[
+x^{(0)},x^{(1)} \in R
+\]
+and one exclusion witness
+\[
+\nu_x \in R.
+\]
+The circuit enforces
+\begin{equation}
+x = x^{(0)} + 2^{16}x^{(1)},
+\label{eq:residue-recompose}
+\end{equation}
+\begin{equation}
+x^{(0)} \in T_{16} := \{0,1,\dots,2^{16}-1\},
+\qquad
+x^{(1)} \in T_{15} := \{0,1,\dots,2^{15}-1\},
+\label{eq:residue-limb-lookups}
+\end{equation}
+and
+\begin{equation}
+(x-p)\nu_x = 1.
+\label{eq:residue-not-p}
+\end{equation}
+
+Equations \eqref{eq:residue-recompose}--\eqref{eq:residue-limb-lookups} imply
+\[
+0 \le x \le 2^{31}-1 = p.
+\]
+Equation \eqref{eq:residue-not-p} excludes the unique bad endpoint \(x=p\), so \(x\in I_p\).
+
+\begin{lemma}[Mersenne canonicality]
+\label{lem:mersenne-canonicality}
+If \(x\in R\) satisfies \eqref{eq:residue-recompose}--\eqref{eq:residue-not-p}, then \(x\) is the canonical integer lift of a unique element of \(\Fp\).
+\end{lemma}
+
+\begin{proof}
+From \eqref{eq:residue-recompose}--\eqref{eq:residue-limb-lookups}, we obtain \(x\in[0,2^{31}-1]\). Since \(2^{31}-1=p\), the only value in this interval that is not in \(I_p=\{0,\dots,p-1\}\) is \(x=p\). Equation \eqref{eq:residue-not-p} implies \(x\neq p\). Hence \(x\in[0,p-1]\), so it is the canonical lift of a unique residue modulo \(p\).
+\end{proof}
+
+\subsubsection{Small quotient columns}
+
+For every cell \(q=W[j]\) with \(W\in\Cset_{31}\), introduce two limb witnesses
+\[
+q^{(0)},q^{(1)}\in R
+\]
+and enforce
+\begin{equation}
+q = q^{(0)} + 2^{16}q^{(1)},
+\label{eq:q31-recompose}
+\end{equation}
+\begin{equation}
+q^{(0)} \in T_{16},
+\qquad
+q^{(1)} \in T_{15}.
+\label{eq:q31-lookups}
+\end{equation}
+Hence
+\[
+0 \le q < 2^{31}.
+\]
+
+\subsubsection{Large quotient columns}
+
+For every cell \(q=W[j]\) with \(W\in\Cset_{66}\), introduce five limb witnesses
+\[
+q^{(0)},q^{(1)},q^{(2)},q^{(3)},q^{(4)} \in R
+\]
+and enforce
+\begin{equation}
+q = q^{(0)} + 2^{16}q^{(1)} + 2^{32}q^{(2)} + 2^{48}q^{(3)} + 2^{64}q^{(4)},
+\label{eq:q66-recompose}
+\end{equation}
+\begin{equation}
+q^{(0)},q^{(1)},q^{(2)},q^{(3)} \in T_{16},
+\qquad
+q^{(4)} \in T_{2} := \{0,1,2,3\}.
+\label{eq:q66-lookups}
+\end{equation}
+Hence
+\[
+0 \le q < 2^{66}.
+\]
+
+\subsubsection{Carry columns}
+
+For every cell \(c=W[j]\) with \(W\in\Cset_{\mathrm{bit}}\), enforce
+\begin{equation}
+c(c-1)=0.
+\label{eq:bit-carry}
+\end{equation}
+For every cell \(u=W[j]\) with \(W\in\Cset_{8}\), enforce
+\begin{equation}
+u \in T_8 := \{0,1,\dots,7\}.
+\label{eq:u8-lookup}
+\end{equation}
+
+\subsubsection{Batched lookup realization}
+
+All instances of
+\[
+x^{(0)}\in T_{16},\;
+x^{(1)}\in T_{15},\;
+q_{31}^{(0)}\in T_{16},\;
+q_{31}^{(1)}\in T_{15},\;
+q_{66}^{(0)}\in T_{16},\;
+q_{66}^{(1)}\in T_{16},\;
+q_{66}^{(2)}\in T_{16},\;
+q_{66}^{(3)}\in T_{16},\;
+q^{(4)}\in T_2,\;
+u\in T_8
+\]
+are enforced using one batched native lookup layer in the Tier-2 PLONKish circuit. Thus the binding mechanism uses only:
+\begin{itemize}[leftmargin=2em]
+    \item native BN254 lookups into tiny public tables \(T_{16},T_{15},T_2,T_8\),
+    \item one non-equality constraint \((x-p)\nu_x=1\) per residue cell, and
+    \item native linear recomposition constraints.
+\end{itemize}
+No foreign-field multiplication gadget, no CRT consistency check, and no multi-limb carry chain is introduced.
+
+\subsection{Why the \(p^{-1}\) attack is eliminated}
+
+The previous vacuity attack exploited the fact that a malicious prover could choose an unconstrained field element
+\[
+Q = -p^{-1}\pmod r.
+\]
+This is impossible once the quotient cells are bounded as small integers.
+
+\begin{lemma}[Bounded deferred-quotient exactness]
+\label{lem:bounded-quotient-exactness}
+Let \(B\in\{2^{31},2^{66}\}\). Let \(L,D,q\in R\) satisfy:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \(L\) is the image in \(R\) of an integer \(\wt{L}\) with
+    \[
+    0 \le \wt{L} < r;
+    \]
+    \item \(D\) is the image in \(R\) of an integer \(\wt{D}\) with
+    \[
+    0 \le \wt{D} < r;
+    \]
+    \item \(q\) is the image in \(R\) of an integer \(\wt{q}\in[0,B)\);
+    \item in \(\Z\),
+    \[
+    0\le \wt{D}+p\wt{q}<r;
+    \]
+    \item in \(R\),
+    \[
+    L = D + pq.
+    \]
+\end{enumerate}
+Then
+\[
+\wt{L}=\wt{D}+p\wt{q}
+\quad\text{in }\Z.
+\]
+If additionally \(\wt{D}\in I_p\), then necessarily
+\[
+\wt{D} = \wt{L} \bmod p,
+\qquad
+\wt{q} = \left\lfloor \frac{\wt{L}}{p} \right\rfloor.
+\]
+\end{lemma}
+
+\begin{proof}
+By (iv), both \(\wt{L}\) and \(\wt{D}+p\wt{q}\) lie in \([0,r)\). Using (v),
+\[
+L-(D+pq)=0 \text{ in }R
+\]
+upgrades to integer equality:
+\[
+\wt{L}=\wt{D}+p\wt{q}.
+\]
+If \(\wt{D}\in I_p\), uniqueness of Euclidean division by \(p\) yields the final
+statement.
+\end{proof}
+
+\begin{corollary}[Exclusion of the \(p^{-1}\)-witness class under quotient range binding]
+\label{cor:eliminate-pinv}
+If a quotient cell is constrained by \eqref{eq:q31-recompose}--\eqref{eq:q31-lookups} or by \eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}, then it cannot equal \(-p^{-1}\pmod r\). Hence the specific \(p^{-1}\)-based vacuity attack is excluded.
+\end{corollary}
+
+\begin{proof}
+Any such quotient cell is an integer \(\wt q\) in \([0,2^{31})\) or in
+\([0,2^{66})\). Assume for contradiction that
+\[
+\wt q \equiv -p^{-1}\pmod r.
+\]
+Then
+\[
+p\wt q + 1 \equiv 0 \pmod r.
+\]
+If \(\wt q<2^{31}\), then
+\[
+0 < p\wt q+1 \le p(2^{31}-1)+1 < p\cdot 2^{31}+p < r.
+\]
+If \(\wt q<2^{66}\), then
+\[
+0 < p\wt q+1 \le p(2^{66}-1)+1 < p\cdot 2^{66}+p < r.
+\]
+In either case \(0<p\wt q+1<r\), so it cannot be divisible by \(r\), a
+contradiction. Therefore \(\wt q\not\equiv -p^{-1}\pmod r\).
+\end{proof}
+
+\subsection{Exact row soundness}
+
+Let \(\wt{L_t[j]}\) denote the intended integer left-hand side of the \(t\)-th
+local identity on row \(j\), and let \(L_t[j]\in R\) denote its image in \(R\).
+Similarly let \(\wt{D_t[j]}\) denote the normalized non-negative integer
+right-hand side term (before adding \(p\wt{Q_t[j]}\)), and let \(D_t[j]\in R\)
+denote its image in \(R\). We enforce local relations as
+\[
+L_t[j]=D_t[j]+pQ_t[j]\quad\text{in }R.
+\]
+
+\begin{definition}[Compression/rowwise interface consistency]
+\label{def:compression-rowwise-rhs-consistency}
+For each relation index \(t\), let \((L_t[j],D_t[j],Q_t[j])_{j\in\Omega}\) be the
+rowwise values defined by the realization rule of
+Definition~\ref{def:selector-relation-realization} together with the
+zero-extension rule of Definition~\ref{def:rowtable-zero-extension}.
+The wrapper compression layer uses the composition polynomials \(L_t(X),D_t(X)\)
+from the instantiated templates (as in the numerator definition above), and the
+quotient witness polynomial \(Q_t(X)\) interpolating \((Q_t[j])_{j\in\Omega}\).
+Consistency requires that
+\[
+L_t(\omega^j)=L_t[j],
+\qquad
+D_t(\omega^j)=D_t[j],
+\qquad
+Q_t(\omega^j)=Q_t[j]
+\quad\text{for all }j\in\{0,\dots,|\Omega|-1\}.
+\]
+\end{definition}
+
+For example:
+\begin{itemize}[leftmargin=2em]
+    \item inverse row:
+    \[
+    L = q\cdot d;
+    \]
+    \item \(E\times F\) coordinate row:
+    \[
+    L = \wt{x}_k\,\wt{a};
+    \]
+    \item \(E\times E\) coordinate row:
+    \[
+    L = \sum_{i,j=0}^{3} m_{ij}^k\,\wt{x}_i\,\wt{y}_j.
+    \]
+\end{itemize}
+
+To upgrade field equalities to integer equalities in a soundness proof, we require
+the range bound for \emph{all satisfying witnesses} (not only honest ones).
+
+\begin{definition}[Row-range discipline]
+\label{def:row-range-discipline}
+For each local relation \(t\), there exists \(B_t\in\{2^{31},2^{66}\}\) such that
+every satisfying row assignment obeys
+\[
+0 \le \wt{L_t[j]} < pB_t + p < r.
+\]
+\end{definition}
+
+\begin{lemma}[Monomial no-wrap]
+\label{lem:monomial-nowrap}
+Let \(x,y\in R\) satisfy:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \(x\) is the image in \(R\) of an integer \(\wt{x}\) with
+    \(0\le \wt{x}\le U_x\);
+    \item \(y\) is the image in \(R\) of an integer \(\wt{y}\) with
+    \(0\le \wt{y}\le U_y\);
+    \item \(U_xU_y<r\).
+\end{enumerate}
+Then the field product \(xy\in R\) is the image in \(R\) of the integer product
+\(\wt{x}\wt{y}\), and \(0\le \wt{x}\wt{y}<r\).
+\end{lemma}
+
+\begin{proof}
+In \(\Z/r\Z\) we have \(x\equiv \wt{x}\) and \(y\equiv \wt{y}\), hence
+\(xy\equiv \wt{x}\wt{y}\pmod r\). By (iii),
+\(0\le \wt{x}\wt{y}\le U_xU_y<r\), so reduction modulo \(r\) is trivial and
+\(xy\) is represented by \(\wt{x}\wt{y}\) in \(R\).
+\end{proof}
+
+\paragraph{Audited no-wrap bounds (moved to appendix).}
+We discharge Definition~\ref{def:row-range-discipline} and the corresponding
+RHS no-wrap bounds for all satisfying witnesses using a public template audit
+certificate and a deterministic bound compiler; see
+Appendix~\ref{app:audit-certificate}.
+
+\paragraph{Template convention (non-negative normalization).}
+This note (and the public audit certificate in Appendix~\ref{app:audit-certificate})
+restricts to row templates already compiled into a \emph{non-negative} deferred-quotient
+form \(L_t = D_t + pQ_t\), where \(L_t\) and \(D_t\) are non-negative combinations
+of degree-\(\le 2\) monomials over ranged row variables and \(Q_t\) is bound to one
+of the declared non-negative quotient intervals (e.g., \(I_{31}\) or \(I_{66}\)).
+Handling row relations whose satisfying assignments force a negative Euclidean
+quotient (e.g., \(L_t < D_t\) on some satisfying rows) would require signed quotient
+ranges or a different normalization scheme, and is outside the scope of this
+repair note.
+
+\begin{theorem}[Rowwise no-vacuity]
+\label{thm:rowwise-no-vacuity}
+Assume the following three premises (formalized by explicit constraints and
+appendix certificates):
+\begin{enumerate}[label=(\Alph*),leftmargin=2em]
+    \item \textbf{Canonical binding.} Residue, quotient, and carry columns are
+    range-bound by the binding constraints
+    \eqref{eq:residue-recompose}--\eqref{eq:residue-not-p},
+    \eqref{eq:q31-recompose}--\eqref{eq:q31-lookups},
+    \eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}, and
+    \eqref{eq:bit-carry} or \eqref{eq:u8-lookup}. Canonical residue rows are
+    exactly those rows whose \(D_t[j]\) is a designated residue witness cell
+    \(c_t[j]\in I_p\).
+    \item \textbf{No-wrap audit and template/realization coherence.} The
+    template audit certificate, together with
+    Definitions~\ref{def:selector-relation-realization},
+    \ref{def:template-realization-coherence}, and
+    \ref{def:rowtable-zero-extension}, establishes exact active-row evaluation
+    and no-wrap bounds for all satisfying witnesses, as formalized by
+    Lemmas~\ref{lem:exact-audited-template-evaluation},
+    \ref{lem:row-range-from-audit}, and
+    \ref{lem:rhs-nowrap-from-audit}
+    (Appendix~\ref{app:audit-certificate} and
+    Appendix~\ref{app:coverage-and-wiring}).
+    \item \textbf{Complete wiring.} Every instantiated quotient/residue/carry
+    slot is covered exactly once by the intended binding rules (no omissions),
+    as formalized by Definitions~\ref{def:complete-quotient-coverage},
+    \ref{def:selector-quotient-wiring}, and
+    \ref{def:selector-residue-carry-wiring} and
+    Lemmas~\ref{lem:no-omitted-quotient-wire} and
+    \ref{lem:no-omitted-residue-carry-wire}
+    (Appendix~\ref{app:coverage-and-wiring}).
+\end{enumerate}
+Then every satisfied row relation of the form
+\begin{equation}
+L_t[j] = D_t[j] + pQ_t[j]
+\quad\text{in }R
+\label{eq:row-relation-R}
+\end{equation}
+is an exact integer identity
+\begin{equation}
+\wt{L_t[j]} = \wt{D_t[j]} + p\,\wt{Q_t[j]}
+\quad\text{in }\Z.
+\label{eq:row-relation-Z}
+\end{equation}
+For canonical residue rows, \(c_t[j]\) is the canonical remainder modulo \(p\),
+and \(Q_t[j]\) is the exact Euclidean quotient.
+\end{theorem}
+
+\begin{proof}
+Fix any row relation \((t,j)\) satisfying \eqref{eq:row-relation-R}. By
+canonical binding and Lemmas~\ref{lem:no-omitted-quotient-wire} and
+\ref{lem:no-omitted-residue-carry-wire}, every quotient/residue/carry cell
+participating in that row admits a canonical integer lift in its declared
+interval.
+
+If \(j\notin\Omega_t\), then Definition~\ref{def:rowtable-zero-extension}
+gives
+\[
+L_t[j]=D_t[j]=Q_t[j]=0,
+\]
+so \eqref{eq:row-relation-Z} is immediate.
+
+Assume now \(j\in\Omega_t\). By
+Definition~\ref{def:template-realization-coherence} and
+Lemma~\ref{lem:exact-audited-template-evaluation}, the values \(L_t[j]\) and
+\(D_t[j]\) are the images in \(R\) of the exact integer evaluations of the
+matched audited normalized template. By
+Lemma~\ref{lem:row-range-from-audit},
+\[
+0\le \wt{L_t[j]} < pB_t+p<r.
+\]
+By Lemma~\ref{lem:rhs-nowrap-from-audit},
+\[
+0\le \wt{D_t[j]}+p\wt{Q_t[j]}<r.
+\]
+Hence Lemma~\ref{lem:bounded-quotient-exactness} applies to
+\eqref{eq:row-relation-R} and upgrades it to the exact integer identity
+\eqref{eq:row-relation-Z}. On canonical residue rows, the designated residue
+cell \(c_t[j]=D_t[j]\) lies in \(I_p\), so uniqueness of Euclidean division
+yields the final statement.
+\end{proof}
+
+Theorem~\ref{thm:rowwise-no-vacuity} shows that the proposed binding layer
+realizes the abstract canonical-lift property guarantee
+\(\mathcal{P}_{\mathrm{canon}}\) that was missing in the vacuity analysis.
+
+\subsection{Extension to a concrete Halo2-style backend (discussion)}
+
+The Tier-2 wrapper check itself can remain unchanged; typically it enforces the
+single compressed evaluation identity
+\begin{equation}
+\sum_t \lambda_t\bigl(l_t-d_t-pq_t\bigr) = h\,Z_\Omega(\zeta),
+\label{eq:main-compressed-check}
+\end{equation}
+where
+\[
+l_t = L_t(\zeta),\quad
+d_t = D_t(\zeta),\quad
+q_t = Q_t(\zeta),\quad
+h = H(\zeta),
+\]
+and \(\zeta \in R\setminus \Omega\) is a verifier challenge (sampled interactively
+or via Fiat--Shamir).
+The identification between compression-layer values
+\(L_t(\omega^j),D_t(\omega^j)\) and rowwise values \(L_t[j],D_t[j]\) is fixed
+later by Definition~\ref{def:compression-rowwise-rhs-consistency}.
+
+\begin{remark}[Backend-dependent closure boundary]
+\label{rem:wrapper-extension}
+Theorem~\ref{thm:rowwise-no-vacuity} is the core algebraic repair in this note.
+A fully closed cryptographic wrapper theorem additionally requires a concrete
+backend argument establishing transcript binding/extraction and degree discipline
+for the polynomials appearing in \eqref{eq:main-compressed-check}, as well as
+soundness preservation under Fiat--Shamir. Under such backend-specific
+properties, the repair upgrades satisfied deferred-quotient row identities to
+exact Euclidean division in \(\Z\), ruling out the \(p^{-1}\)-based vacuity
+attack in the composed system.
+\end{remark}
+
+\begin{definition}[Concrete backend profile \(\mathsf{H2\text{-}DQ}\)]
+\label{def:h2-dq-profile}
+Fix the concrete Halo2-style circuit family implementing this note (same
+selector layout, lookup tables, and row-table schema as the public certificate
+\texttt{certificates/public\_certificate.json}). We say an accepted proof
+satisfies profile \(\mathsf{H2\text{-}DQ}\) if extraction/binding for that
+backend yields witness columns such that:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item all canonical-binding gate/lookup constraints hold rowwise:
+    \eqref{eq:residue-recompose}--\eqref{eq:residue-not-p},
+    \eqref{eq:q31-recompose}--\eqref{eq:q31-lookups},
+    \eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}, and
+    \eqref{eq:bit-carry}/\eqref{eq:u8-lookup};
+    \item coverage/wiring/row-activity metadata matches the published
+    certificate and passes the deterministic checker
+    \texttt{scripts/check\_public\_certificate.py};
+    \item for every relation index \(t\) and every active row \(j\in\Omega_t\),
+    the pair \((t,j)\) satisfies
+    \(L_t[j]=D_t[j]+pQ_t[j]\) in \(R\), and inactive row-table entries satisfy
+    Definition~\ref{def:rowtable-zero-extension};
+    \item the committed polynomials in \eqref{eq:main-compressed-check} are
+    degree-disciplined and consistent with extracted row-table values under
+    Definition~\ref{def:compression-rowwise-rhs-consistency}.
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Pinned backend instance \(\mathsf{H2\text{-}DQ\_v1}\)]
+\label{def:h2-dq-instance}
+We pin one concrete backend instance by the manifest
+\texttt{certificates/h2dq\_backend\_instance.json}, which binds:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item the public certificate payload digest
+    (\texttt{certificate\_payload\_sha256}),
+    \item the deterministic checker script hash
+    (\texttt{checker\_sha256}),
+    \item the manuscript hash (\texttt{manuscript\_sha256}),
+    \item the Fiat--Shamir challenge schedule:
+    sample \(\lambda=(\lambda_t)_t\) first, then sample
+    \(\zeta\in R\setminus\Omega\) (domain separator \texttt{h2-dq-v1}).
+\end{enumerate}
+The instance is valid only if the checker
+\texttt{scripts/check\_public\_certificate.py} accepts both
+\texttt{certificates/public\_certificate.json} and this manifest.
+\end{definition}
+
+\begin{theorem}[Pinned-backend closure for \(\mathsf{H2\text{-}DQ\_v1}\)]
+\label{thm:backend-instantiated-closure}
+Assume the pinned instance of Definition~\ref{def:h2-dq-instance} and the
+following backend assumptions:
+\begin{enumerate}[label=(H\arabic*),leftmargin=2em]
+    \item \textbf{Extraction/binding for accepted proofs.}
+    Every accepted proof yields extracted witness columns and committed
+    polynomials consistent with the backend commitments.
+    \item \textbf{Algebraic acceptance contract.}
+    For extracted objects, the backend verifier acceptance implies:
+    \begin{enumerate}[label=(\alph*),leftmargin=2em]
+        \item all constraints of Definition~\ref{def:h2-dq-profile}(i)--(iii)
+        hold;
+        \item the compressed check \eqref{eq:main-compressed-check} holds at the
+        extracted challenge pair \((\lambda,\zeta)\) sampled in the fixed
+        schedule of Definition~\ref{def:h2-dq-instance}.
+    \end{enumerate}
+    \item \textbf{Degree discipline.}
+    Extracted committed polynomials satisfy the declared degree bounds,
+    including \(\deg Q_t<m\), and the rowwise/compression interface of
+    Definition~\ref{def:compression-rowwise-rhs-consistency}.
+    \item \textbf{Fiat--Shamir theorem for the pinned instance.}
+    In the ROM, non-interactive accepted proofs fail to realize (H1)--(H3) with
+    probability at most \(\epsilon_{\mathrm{H2DQ}}(\kappa)\), where
+    \(\epsilon_{\mathrm{H2DQ}}\) is negligible in the security parameter
+    \(\kappa\).
+\end{enumerate}
+Then, except with probability at most
+\(\epsilon_{\mathrm{H2DQ}}(\kappa)\), accepted proofs satisfy premises (A)--(C)
+of Theorem~\ref{thm:rowwise-no-vacuity}. Consequently each active
+deferred-quotient row relation is an exact Euclidean-division statement in
+\(\Z\), and the rowwise \(p^{-1}\)-based vacuity witness class is excluded for
+the pinned backend instance.
+\end{theorem}
+
+\begin{proof}
+By (H2a), constraints and metadata conditions of
+Definition~\ref{def:h2-dq-profile}(i)--(iii) hold for extracted objects; by
+Definition~\ref{def:h2-dq-instance} these metadata checks are concretely bound
+to the pinned certificate/checker artifact. Together with (H1), this
+instantiates premises (A)--(C) of Theorem~\ref{thm:rowwise-no-vacuity}. By
+(H2b) and (H3), the compressed acceptance equation and degree/interface
+conditions are available in the extracted transcript under the fixed challenge
+schedule. Therefore Theorem~\ref{thm:rowwise-no-vacuity} applies to every active
+row relation and yields exact Euclidean semantics in \(\Z\). The only residual
+failure event is the Fiat--Shamir failure of (H4), bounded by
+\(\epsilon_{\mathrm{H2DQ}}(\kappa)\).
+\end{proof}
+
+\subsection{Tier-2 circuit cost accounting}
+
+The main arithmetic compression check \eqref{eq:main-compressed-check} is unchanged. The only additional cost is the canonical-binding layer above.
+Unless stated otherwise, all symbolic counts in this subsection are exact arithmetic-object counts under this
+bookkeeping model (lookup cells, native multiplicative constraints, and linear
+recomposition constraints). They do not claim exact wall-clock proving time,
+which depends on backend implementation details.
+In particular, this is not a claim that one lookup cell is cost-equivalent to
+one native multiplication gate; we report them as distinct arithmetic objects.
+\paragraph{Supplementary implementation note (not a main claim).}
+An implemented Halo2 B1-lite circuit-shape comparison is reported only as a
+supplementary reproducibility artifact in
+Appendix~\ref{app:b1lite-supplement}. It is intentionally not
+task-equated (baseline omits modular reduction and CRT-consistency) and
+is not used as a main quantitative claim.
+
+Let
+\begin{align*}
+N_p &:= \#\{\text{residue cells bound by } \eqref{eq:residue-recompose}\text{--}\eqref{eq:residue-not-p}\},\\
+N_{31} &:= \#\{\text{31-bit quotient cells bound by } \eqref{eq:q31-recompose}\text{--}\eqref{eq:q31-lookups}\},\\
+N_{66} &:= \#\{\text{66-bit quotient cells bound by } \eqref{eq:q66-recompose}\text{--}\eqref{eq:q66-lookups}\},\\
+N_{\mathrm{bit}} &:= \#\{\text{boolean carry cells}\},\\
+N_8 &:= \#\{\text{3-bit carry cells}\}.
+\end{align*}
+We decompose quotient-cell totals by family as
+\[
+N_{31}=N_{31}^{\mathrm{EF}}+N_{31}^{\mathrm{car}},
+\qquad
+N_{66}=N_{66}^{\mathrm{inv}}+N_{66}^{\mathrm{EE}}+N_{66}^{\mathrm{hor}},
+\]
+where \(N_{31}^{\mathrm{car}}\) is exactly the contribution of
+\(Q_{\mathrm{car}}\) carry-normalization rows.
+
+Then the added Tier-2 arithmetization cost is:
+
+\paragraph{Lookup cells.}
+\begin{equation}
+L_{\mathrm{canon}}
+=
+2N_p + 2N_{31} + 5N_{66} + N_8.
+\label{eq:canon-lookup-cost}
+\end{equation}
+
+\paragraph{Native multiplicative constraints.}
+\begin{equation}
+M_{\mathrm{canon}}
+=
+N_p + N_{\mathrm{bit}}.
+\label{eq:canon-mul-cost}
+\end{equation}
+These are:
+\begin{itemize}[leftmargin=2em]
+    \item \(N_p\) non-equality constraints \((x-p)\nu_x=1\),
+    \item \(N_{\mathrm{bit}}\) boolean constraints \(c(c-1)=0\).
+\end{itemize}
+
+\paragraph{Linear recomposition constraints.}
+\begin{equation}
+\mathrm{Lin}_{\mathrm{canon}}
+=
+N_p + N_{31} + N_{66}.
+\label{eq:canon-lin-cost}
+\end{equation}
+
+No limb-wise multiplication, no CRT consistency, and no foreign-field carry propagation appear anywhere in the canonical-binding layer.
+
+\subsubsection{Concrete promoted Horner row (scope-separated from carry-normalization rows)}
+
+Consider one promoted Horner row:
+\[
+s = 2a_0+a_1+a_2+a_3,
+\qquad
+s' = a_0 + \rho(a_1+\rho(a_2+\rho a_3)),
+\]
+with exact intermediate variables
+\[
+m_3,\; h_2,\; m_2,\; h_1,\; m_1
+\]
+and quotient/carry vectors as in the deferred-quotient arithmetization.
+This micro-count intentionally excludes separate carry-normalization rows.
+Although the underlying arithmetic corresponds to one Horner evaluation step of
+a degree-\(3\) expression, the circuit realizes it via a fixed family of
+linear/quadratic subtemplates with intermediate witnesses; hence the audited
+template language remains degree-\(\le 2\).
+All Horner-related audit bounds and quotient-class assignments refer to these
+subtemplates, not to a single degree-\(3\) monomial template.
+Then one promoted Horner row contains:
+\begin{itemize}[leftmargin=2em]
+    \item \(11\) \(E\)-elements of canonical residues,
+    \[
+    a_0,a_1,a_2,a_3,s,s',m_3,h_2,m_2,h_1,m_1,
+    \]
+    hence
+    \[
+    N_p^{\mathrm{round}} = 11\cdot 4 = 44;
+    \]
+    \item \(3\) quotient vectors \(q_3,q_2,q_1\), hence
+    \[
+    N_{66}^{\mathrm{round}} = 3\cdot 4 = 12;
+    \]
+    \item carry vectors \(c_2,c_1,v\in\{0,1\}^4\), hence
+    \[
+    N_{\mathrm{bit}}^{\mathrm{round}} = 12;
+    \]
+    \item one 3-bit carry vector \(u\in\{0,\dots,4\}^4\), hence
+    \[
+    N_8^{\mathrm{round}} = 4.
+    \]
+\end{itemize}
+In this scope,
+\[
+N_{31}^{\mathrm{round}}=0,
+\]
+because no \(Q_{\mathrm{car}}\) row is included.
+
+Therefore the added binding counts per promoted Horner row are exactly:
+\begin{equation}
+L_{\mathrm{canon}}^{\mathrm{round}}
+=
+2\cdot 44 + 5\cdot 12 + 4
+=
+152
+\label{eq:round-lookup-cost}
+\end{equation}
+lookup cells,
+\begin{equation}
+M_{\mathrm{canon}}^{\mathrm{round}}
+=
+44 + 12
+=
+56
+\label{eq:round-mul-cost}
+\end{equation}
+native multiplicative constraints, and
+\begin{equation}
+\mathrm{Lin}_{\mathrm{canon}}^{\mathrm{round}}
+=
+44 + 12
+=
+56
+\label{eq:round-lin-cost}
+\end{equation}
+linear recomposition constraints.
+
+\paragraph{Carry-normalization add-on (31-bit quotient family).}
+A carry-normalization row contributes one quotient vector
+\(\{q_{\mathrm{car}}^{(k)}\}_{k=0}^3\), i.e.
+\[
+N_{31,\mathrm{car}}^{\mathrm{row}}=4.
+\]
+Hence each such row adds
+\[
+\Delta L_{\mathrm{canon}}=2\cdot 4=8,\qquad
+\Delta M_{\mathrm{canon}}=0,\qquad
+\Delta \mathrm{Lin}_{\mathrm{canon}}=4.
+\]
+If one carry-normalization row is paired with each promoted Horner row, the
+per-package counts are
+\[
+L_{\mathrm{canon}}^{\mathrm{pkg}}=160,\qquad
+M_{\mathrm{canon}}^{\mathrm{pkg}}=56,\qquad
+\mathrm{Lin}_{\mathrm{canon}}^{\mathrm{pkg}}=60.
+\]
+The carry-normalization add-on reuses the carry witnesses already counted in
+the paired promoted Horner row and introduces only the fresh quotient vector
+\(\{q_{\mathrm{car}}^{(k)}\}_{k=0}^3\) as additional bounded cells. Hence it
+contributes no extra boolean or \(3\)-bit carry cost in this package
+accounting.
+
+Let \(R_{\mathrm{hor}}\) be the number of promoted Horner rows and
+\(R_{\mathrm{car}}\) the number of carry-normalization rows. Then the total added
+binding overhead from these two row families is
+\begin{equation}
+L_{\mathrm{canon}}^{\mathrm{tot}}
+=
+152\,R_{\mathrm{hor}}+8\,R_{\mathrm{car}},
+\label{eq:total-lookup-cost}
+\end{equation}
+\begin{equation}
+M_{\mathrm{canon}}^{\mathrm{tot}}
+=
+56\,R_{\mathrm{hor}},
+\label{eq:total-mul-cost}
+\end{equation}
+and
+\begin{equation}
+\mathrm{Lin}_{\mathrm{canon}}^{\mathrm{tot}}
+=
+56\,R_{\mathrm{hor}}+4\,R_{\mathrm{car}}.
+\label{eq:total-lin-cost}
+\end{equation}
+These three equations are exact symbolic arithmetic-object counts for the added
+canonical-binding layer in this note.
+This is consistent with
+\eqref{eq:canon-lookup-cost}--\eqref{eq:canon-lin-cost} under
+\[
+N_{66}^{\mathrm{hor}}=12R_{\mathrm{hor}},
+\qquad
+N_{31}^{\mathrm{car}}=4R_{\mathrm{car}}.
+\]
+
+\paragraph{Instantiation for standard \(n\)-variable transcripts.}
+For the common fractional-GKR transcript family, if carry-normalization rows
+are instantiated one-for-one with promoted Horner rows
+\[
+R_{\mathrm{car}}=R_{\mathrm{hor}}=:R_{\mathrm{sc}},
+\]
+and
+\[
+R_{\mathrm{sc}}
+=
+\sum_{k=1}^{n-1} k
+=
+\frac{n(n-1)}{2},
+\]
+equations \eqref{eq:total-lookup-cost}--\eqref{eq:total-lin-cost} become
+\[
+L_{\mathrm{canon}}^{\mathrm{tot}}=80\,n(n-1),
+\qquad
+M_{\mathrm{canon}}^{\mathrm{tot}}=28\,n(n-1),
+\qquad
+\mathrm{Lin}_{\mathrm{canon}}^{\mathrm{tot}}=30\,n(n-1).
+\]
+
+\paragraph{Asymptotic position versus full emulation.}
+Let \(N_{\mathrm{base}}\) denote the size of the original computation being
+wrapped, and \(m:=|\Omega|\) the wrapped transcript-table size. In the standard
+fractional-GKR setting discussed here:
+\[
+m=\Theta(\log^2 N_{\mathrm{base}}),
+\qquad
+R_{\mathrm{sc}}=\Theta(m).
+\]
+Hence the canonical-binding overhead is
+\[
+\Theta(R_{\mathrm{sc}})
+=
+\Theta(m)
+=
+\Theta(\log^2 N_{\mathrm{base}}).
+\]
+By contrast, full in-circuit replay of the original computation costs
+\(\Omega(N_{\mathrm{base}})\). Therefore the overhead ratio is
+\[
+O\!\left(\frac{\log^2 N_{\mathrm{base}}}{N_{\mathrm{base}}}\right),
+\]
+which vanishes as \(N_{\mathrm{base}}\) grows.
+
+\subsubsection{Representative symbolic instantiations and cell-level baseline}
+
+The formulas above already give an exact accounting of the \emph{added} binding
+overhead in terms of arithmetic objects. This equation-level accounting
+(\eqref{eq:total-lookup-cost}--\eqref{eq:total-lin-cost}) is the primary
+quantitative claim of this repair note.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{|r|r|r|r|r|}
+\hline
+\(n\) & \(R_{\mathrm{sc}}=\frac{n(n-1)}{2}\) & \(L_{\mathrm{canon}}^{\mathrm{tot}}\) & \(M_{\mathrm{canon}}^{\mathrm{tot}}\) & \(\mathrm{Lin}_{\mathrm{canon}}^{\mathrm{tot}}\) \\
+\hline
+16  & 120  & 19,200    & 6,720    & 7,200 \\
+32  & 496  & 79,360    & 27,776   & 29,760 \\
+64  & 2,016 & 322,560   & 112,896  & 120,960 \\
+128 & 8,128 & 1,300,480 & 455,168  & 487,680 \\
+\hline
+\end{tabular}
+\caption{Added canonical-binding overhead for representative \(n\) under the
+standard schedule \(R_{\mathrm{car}}=R_{\mathrm{hor}}=R_{\mathrm{sc}}\).}
+\label{tab:canon-overhead-bench}
+\end{table}
+
+\paragraph{Binding primitive comparison (lookup limbs vs bit decomposition).}
+As a backend-agnostic qualitative baseline at the cell level, we compare our
+lookup-limb binding against explicit bit decomposition.
+As a simple baseline, one can range-bind a \(k\)-bit value by explicit bit
+decomposition (introduce \(k\) boolean variables plus one recomposition
+constraint). Our binding mechanism replaces \(\Theta(k)\) multiplicative
+constraints per cell with \(O(1)\) lookup limbs and one recomposition, under
+the explicit premise that the Tier-2 backend provides a native lookup argument.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{|l|l|l|}
+\hline
+Cell type & This note (lookup-limb binding) & Bit-decomposition baseline \\
+\hline
+Residue cell in \(I_p\) & \(2\) lookups + \(1\) linear + \(1\) non-equality & \(31\) booleans + \(1\) linear + \(1\) non-equality \\
+31-bit quotient cell in \(I_{31}\) & \(2\) lookups + \(1\) linear & \(31\) booleans + \(1\) linear \\
+66-bit quotient cell in \(I_{66}\) & \(5\) lookups + \(1\) linear & \(66\) booleans + \(1\) linear \\
+Boolean carry cell & \(1\) boolean & \(1\) boolean \\
+3-bit carry cell in \(T_8\) & \(1\) lookup & \(3\) booleans + \(1\) linear \\
+\hline
+\end{tabular}
+\caption{Binding cost per cell (under native lookup availability): lookup limbs
+versus explicit bit decomposition.}
+\label{tab:binding-vs-bitdecomp}
+\end{table}
+
+For example, in the promoted Horner scope above with
+\(N_p^{\mathrm{round}}=44\),
+\(N_{66}^{\mathrm{round}}=12\),
+\(N_{\mathrm{bit}}^{\mathrm{round}}=12\), and
+\(N_8^{\mathrm{round}}=4\),
+explicit bit decomposition would add
+\[
+31N_p^{\mathrm{round}} + 66N_{66}^{\mathrm{round}} + N_{\mathrm{bit}}^{\mathrm{round}} + 3N_8^{\mathrm{round}} + N_p^{\mathrm{round}} = 2224
+\]
+native multiplicative constraints (booleanity plus residue non-equality),
+whereas the lookup-limb package adds
+\(M_{\mathrm{canon}}^{\mathrm{round}}=56\) multiplicative constraints and
+\(L_{\mathrm{canon}}^{\mathrm{round}}=152\) lookup cells.
+
+\paragraph{Implementation note (supplementary B1-lite artifact only).}
+For reproducibility, we report one implemented Halo2 circuit-shape comparison
+in Appendix~\ref{app:b1lite-supplement}. This supplementary artifact is
+backend-specific, not task-equated, and not part of the main theorem
+claims or main quantitative evidence.
+
+\subsection{Summary}
+
+The minimum algebraic repair to eliminate the \(p^{-1}\)-based vacuity is:
+\begin{enumerate}[label=(\arabic*),leftmargin=2em]
+    \item retain the one-limb exact arithmetic over \(R\),
+    \item keep the single compressed polynomial evaluation check \eqref{eq:main-compressed-check},
+    \item add only a \emph{native} canonical-binding layer consisting of:
+    \begin{itemize}[leftmargin=2em]
+        \item \(31\)-bit lookup \(+\) one non-equality-to-\(p\) gate for each residue cell,
+        \item \(31\)-bit or \(66\)-bit power-of-two lookup bounds for quotient cells,
+        \item boolean or \(3\)-bit lookup constraints for carries.
+    \end{itemize}
+\end{enumerate}
+
+This removes the \(p^{-1}\)-based vacuity, realizes the missing canonical-lift
+property guarantee \(\mathcal{P}_{\mathrm{canon}}\), and keeps Tier-2 arithmetic fully native over
+\(\F_r\). The additional wrapper arithmetic-object count in this bookkeeping
+model is given by
+\eqref{eq:total-lookup-cost}, \eqref{eq:total-mul-cost}, and
+\eqref{eq:total-lin-cost}, with representative instantiations in
+Table~\ref{tab:canon-overhead-bench} and cell-level qualitative comparison in
+Table~\ref{tab:binding-vs-bitdecomp}.
+
+At claim level, the rowwise exactness package is fully explicit in this note
+(including the template/realization coherence bridge connecting audited integer
+templates to actual row-table values), while wrapper-level cryptographic
+soundness is discussed only briefly in Remark~\ref{rem:wrapper-extension}.
+
+\appendix
+
+% BEGIN OPTION2 APPENDICES
+\section{Audited no-wrap bounds and template certificates}
+\label{app:audit-certificate}
+This appendix records the public audit certificate, deterministic bound
+verification, and instantiated constants used to justify the no-wrap
+premises in the rowwise exactness layer.
+
+\paragraph{Row-family bound audit (all satisfying witnesses).}
+To avoid treating Definition~\ref{def:row-range-discipline} as a standalone
+assumption, we publish the following row-family audit. Each row template is
+encoded in normalized non-negative deferred-quotient form and assigned a
+class \(B_f\in\{2^{31},2^{66}\}\).
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+\hline
+Row family \(f\) & Integer form for \(L_f\) & Certified bound \(U_f^{\mathrm{audit}}\) & Class \(B_f\) \\
+\hline
+inverse & \(L=q\cdot d\) & \((2^{66}-1)(p-1)\) & \(2^{66}\) \\
+\hline
+\(E\times F\) coordinate & \(L=\wt{x}_k\,\wt{a}\) & \((p-1)^2\) & \(2^{31}\) \\
+\hline
+\(E\times E\) coordinate & \(L=\sum_{i,j} m_{ij}^k \wt{x}_i\wt{y}_j\) & \(16\,(p-1)^3\) & \(2^{66}\) \\
+\hline
+promoted Horner & family of linear/quadratic subtemplates (promoted Horner block) & \(U_{\mathrm{hor}}^{\mathrm{audit}}\) & \(2^{66}\) \\
+\hline
+carry normalization & linear carry-transfer form & \(U_{\mathrm{car}}^{\mathrm{audit}}\) & \(2^{31}\) \\
+\hline
+\end{tabular}
+\end{center}
+
+Here
+\[
+M_{\mathrm{EE}}^{\max}
+:=
+\max_{k,i,j}\left|\widetilde{m_{ij}^k}\right|
+\le
+p-1
+=
+2147483646
+\]
+is a conservative worst-case bound under canonical integer lifts (independent
+of basis coefficients).
+
+\begin{definition}[Template-family audit certificate and deterministic bound compiler]
+\label{def:template-audit-certificate}
+A public row-audit certificate consists of a finite family index set
+\(\mathcal F\). Each family \(f\in\mathcal F\) has a finite template set
+\(\mathcal T_f\). For each template \(\tau\in\mathcal T_f\), the certificate
+provides:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item a normalized non-negative left polynomial
+    \[
+    L_{f,\tau}(\mathbf z)
+    =
+    \sum_{u\in\mathcal L_{f,\tau}} a_{f,\tau,u}\,z_u
+    +
+    \sum_{(u,v)\in\mathcal B_{f,\tau}} b_{f,\tau,uv}\,z_u z_v,
+    \]
+    with coefficients \(a_{f,\tau,u},b_{f,\tau,uv}\in\Z_{\ge 0}\);
+    \item a normalized non-negative right polynomial
+    \[
+    D_{f,\tau}(\mathbf z)
+    =
+    \sum_{u\in\mathcal L^D_{f,\tau}} \alpha_{f,\tau,u}\,z_u
+    +
+    \sum_{(u,v)\in\mathcal B^D_{f,\tau}} \beta_{f,\tau,uv}\,z_u z_v,
+    \]
+    with coefficients \(\alpha_{f,\tau,u},\beta_{f,\tau,uv}\in\Z_{\ge 0}\);
+    \item interval bounds
+    \[
+    0 \le z_u \le U_{f,u}^{\max}
+    \]
+    induced by the class/range constraints;
+    \item the class \(B_f\in\{2^{31},2^{66}\}\);
+    \item deterministic per-template bounds
+    \[
+    U_{f,\tau}^{L}
+    :=
+    \sum_{u\in\mathcal L_{f,\tau}} a_{f,\tau,u}\,U_{f,u}^{\max}
+    +
+    \sum_{(u,v)\in\mathcal B_{f,\tau}} b_{f,\tau,uv}\,U_{f,u}^{\max}U_{f,v}^{\max},
+    \]
+    \[
+    U_{f,\tau}^{D}
+    :=
+    \sum_{u\in\mathcal L^D_{f,\tau}} \alpha_{f,\tau,u}\,U_{f,u}^{\max}
+    +
+    \sum_{(u,v)\in\mathcal B^D_{f,\tau}} \beta_{f,\tau,uv}\,U_{f,u}^{\max}U_{f,v}^{\max}.
+    \]
+\end{enumerate}
+Define family-level maxima
+\[
+U_f^{\mathrm{audit}}
+:=
+\max_{\tau\in\mathcal T_f} U_{f,\tau}^{L},
+\qquad
+U_f^{D,\mathrm{audit}}
+:=
+\max_{\tau\in\mathcal T_f} U_{f,\tau}^{D}.
+\]
+The compiler accepts only if each active instantiated row is syntactically
+matched to exactly one template \((f,\tau)\) with \(\tau\in\mathcal T_f\),
+while inactive row-table entries are handled separately by
+Definition~\ref{def:rowtable-zero-extension}, and
+\[
+U_f^{\mathrm{audit}} < pB_f + p,
+\qquad
+U_f^{D,\mathrm{audit}} + p(B_f-1) < r
+\]
+holds for every \(f\). For the promoted-Horner and carry-normalization
+families in the audit table above, we write
+\[
+U_{\mathrm{hor}}^{\mathrm{audit}}
+:=
+U_{f_{\mathrm{hor}}}^{\mathrm{audit}},
+\qquad
+U_{\mathrm{car}}^{\mathrm{audit}}
+:=
+U_{f_{\mathrm{car}}}^{\mathrm{audit}}.
+\]
+\[
+U_{\mathrm{hor}}^{D,\mathrm{audit}}
+:=
+U_{f_{\mathrm{hor}}}^{D,\mathrm{audit}},
+\qquad
+U_{\mathrm{car}}^{D,\mathrm{audit}}
+:=
+U_{f_{\mathrm{car}}}^{D,\mathrm{audit}}.
+\]
+\end{definition}
+
+\begin{definition}[Family/quotient-class coherence]
+\label{def:family-quotient-class-coherence}
+Whenever an active row is matched to template \((f,\tau)\) with family class
+\(B_f\in\{2^{31},2^{66}\}\), every quotient slot appearing in that instantiated
+template has local class tag
+\[
+b_{s,\ell}=
+\begin{cases}
+31,& B_f=2^{31},\\
+66,& B_f=2^{66}.
+\end{cases}
+\]
+Equivalently, every instantiated quotient value \(Q_t[j]\) in family \(f\) is
+wired to a column in \(\mathcal Q_{31}\) if \(B_f=2^{31}\), and to a column in
+\(\mathcal Q_{66}\) if \(B_f=2^{66}\).
+\end{definition}
+
+\paragraph{Deterministic verifier for the audit certificate.}
+Given the certificate data, the verifier performs the following checks:
+\begin{enumerate}[label=(\arabic*),leftmargin=2em]
+    \item for each template \((f,\tau)\), parse \(L_{f,\tau}\) and \(D_{f,\tau}\),
+    and ensure all certified coefficients are in \(\Z_{\ge 0}\);
+    \item compute \(U_{f,\tau}^{L}\), \(U_{f,\tau}^{D}\), then family maxima
+    \(U_f^{\mathrm{audit}}\), \(U_f^{D,\mathrm{audit}}\) from
+    Definition~\ref{def:template-audit-certificate};
+    \item check
+    \[
+    U_f^{\mathrm{audit}} < pB_f+p,
+    \qquad
+    U_f^{D,\mathrm{audit}} + p(B_f-1) < r
+    \]
+    for each family class \(B_f\);
+    \item verify the template map \(\omega_T\) is total and functional on all
+    active local scalar relation instances \((s,\rho,j)\), that each such
+    instance is matched to exactly one template \((f,\tau)\) with
+    \(\tau\in\mathcal T_f\), that the corresponding local realization
+    expressions agree with the matched normalized template polynomials as
+    required by Definition~\ref{def:template-realization-coherence}, and that
+    quotient-slot class tags are coherent with \(B_f\) as required by
+    Definition~\ref{def:family-quotient-class-coherence}.
+\end{enumerate}
+All checks are deterministic and independent of prover-provided runtime values.
+
+\paragraph{Machine-readable public certificate and checker.}
+For this manuscript package we publish a concrete machine-readable public
+certificate
+\texttt{certificates/public\_certificate.json}
+and a deterministic checker
+\texttt{scripts/check\_public\_certificate.py}.
+The checker deterministically:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item reconstructs per-template bounds and family maxima;
+    \item verifies the class/headroom checks
+    \(U_f^{\mathrm{audit}}<pB_f+p\),
+    \(U_f^{D,\mathrm{audit}}+p(B_f-1)<r\);
+    \item verifies quotient/non-quotient coverage and selector-level wiring
+    single-valued mapping/class consistency;
+    \item verifies relation/row-activity metadata consistency and inactive-row
+    zero-extension flags;
+    \item verifies digest binding between the certificate payload and the
+    manuscript hash.
+\end{enumerate}
+Reproduction command:
+\texttt{python scripts/check\_public\_certificate.py --certificate certificates/public\_certificate.json --manuscript wrapper\_note\_option2.tex}.
+Pinned-instance check command:
+\texttt{python scripts/check\_public\_certificate.py --certificate certificates/public\_certificate.json --manuscript wrapper\_note\_option2.tex --backend-instance certificates/h2dq\_backend\_instance.json}.
+
+\paragraph{Instantiated bounds for the current template library (current manuscript).}
+\begin{center}
+\begin{tabular}{|l|c|r|r|}
+\hline
+family id & class bits & decimal left bound & decimal right bound \\
+\hline
+\texttt{inv} & \(66\) & \(158456324880954722595264004098\) & \(2147483646\) \\
+\hline
+\texttt{EF} & \(31\) & \(4611686009837453316\) & \(2147483646\) \\
+\hline
+\texttt{EE} & \(66\) & \(158456324585806817830375522176\) & \(2147483646\) \\
+\hline
+\texttt{hor} & \(66\) & \(158456324585806817830375522176\) & \(158456324585806817830375522176\) \\
+\hline
+\texttt{car} & \(31\) & \(4294967299\) & \(4294967299\) \\
+\hline
+\end{tabular}
+\end{center}
+For this manuscript draft, the table above is encoded exactly in
+\texttt{certificates/public\_certificate.json} (payload \texttt{families}) and
+is checked against deterministic bound reconstruction by
+\texttt{scripts/check\_public\_certificate.py}.
+In this instantiation, inverse/\(E\times F\)/\(E\times E\) rows are canonical
+residue rows, so \(D_t[j]=c_t[j]\in I_p\) and
+\(U_{\mathrm{inv}}^{D,\mathrm{audit}}=
+U_{\mathrm{EF}}^{D,\mathrm{audit}}=
+U_{\mathrm{EE}}^{D,\mathrm{audit}}=p-1\).
+In the current instantiated template library, the audited \(E\times E\) family
+used for the constants above is treated in canonical non-negative form, so
+\(D_t[j]=c_t[j]\in I_p\) on those rows. This note does not include alternative
+signed normalizations that would require signed quotient handling.
+
+\begin{lemma}[Template-derived family bounds]
+\label{lem:template-bound-soundness}
+Under Definition~\ref{def:template-audit-certificate}, for every family
+\(f\in\mathcal F\), every template \(\tau\in\mathcal T_f\), and every satisfying
+assignment \(\mathbf z\) of its row variables,
+\[
+0 \le L_{f,\tau}(\mathbf z) \le U_f^{\mathrm{audit}}.
+\]
+and
+\[
+0 \le D_{f,\tau}(\mathbf z) \le U_f^{D,\mathrm{audit}}.
+\]
+\end{lemma}
+
+\begin{proof}
+All certified coefficients are non-negative and every variable is restricted to
+a non-negative interval. Therefore both \(L_{f,\tau}\) and \(D_{f,\tau}\) are
+coordinate-wise monotone on the certified box
+\(\prod_u [0,U_{f,u}^{\max}]\). Their maxima are attained at the upper endpoint
+vector \((U_{f,u}^{\max})_u\), giving
+\(U_f^{\mathrm{audit}}\) and \(U_f^{D,\mathrm{audit}}\) by definition.
+Non-negativity gives the lower bounds.
+\end{proof}
+
+\paragraph{Concrete inequalities used in the audit.}
+For \(p=2^{31}-1\):
+\[
+p\cdot 2^{66}+p
+=
+(2^{31}-1)(2^{66}+1)
+=
+2^{97}+2^{31}-2^{66}-1
+<
+2^{97}.
+\]
+The audit verifies:
+\begin{align*}
+&\text{inverse: } (2^{66}-1)(p-1)=158456324880954722595264004098 < p\cdot 2^{66}+p,\\
+&E\times F: (p-1)^2=4611686009837453316 < p\cdot 2^{31}+p = 4611686018427387903,\\
+&E\times E: 16\,M_{\mathrm{EE}}^{\max}(p-1)^2
+=16(p-1)^3
+=158456324585806817830375522176
+< p\cdot 2^{66}+p.
+\end{align*}
+The compiler also checks
+\[
+U_{\mathrm{hor}}^{\mathrm{audit}} < p\cdot 2^{66}+p,
+\qquad
+U_{\mathrm{car}}^{\mathrm{audit}} < p\cdot 2^{31}+p.
+\]
+and the RHS-side no-wrap conditions
+\[
+U_{\mathrm{inv}}^{D,\mathrm{audit}}+p(2^{66}-1)<r,\quad
+U_{\mathrm{EF}}^{D,\mathrm{audit}}+p(2^{31}-1)<r,\quad
+U_{\mathrm{EE}}^{D,\mathrm{audit}}+p(2^{66}-1)<r,
+\]
+\[
+U_{\mathrm{hor}}^{D,\mathrm{audit}}+p(2^{66}-1)<r,\quad
+U_{\mathrm{car}}^{D,\mathrm{audit}}+p(2^{31}-1)<r.
+\]
+
+\paragraph{Appendix-style instantiated audit values for selected templates.}
+For the current wrapper template set, the promoted-Horner and
+carry-normalization family bounds are
+instantiated as follows.
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+Family & Instantiated template bound & Numeric value \\
+\hline
+promoted Horner &
+\(
+\max\!\{16M_{\mathrm{EE}}^{\max}(p-1)^2,\;2(p-1),\;5(p-1)\}
+\) &
+\(16(p-1)^3=158456324585806817830375522176\) \\
+\hline
+carry normalization &
+\(
+\max\!\{2(p-1)+7,\;2^{16}(2^{15}-1)+(2^{16}-1)\}
+\) &
+\(U_{\mathrm{car}}^{\mathrm{audit}}=4294967299\) \\
+\hline
+\end{tabular}
+\end{center}
+
+The promoted-Horner maximum comes from multiplication sub-rows
+\(m_3=\rho a_3\), \(m_2=\rho h_2\), \(m_1=\rho h_1\), each of \(E\times E\)
+coordinate form. The linear Horner sub-rows
+\(h_2=a_2+m_3\), \(h_1=a_1+m_2\), \(s'=a_0+m_1\), and
+\(s=2a_0+a_1+a_2+a_3\) are strictly smaller.
+
+The carry-normalization template family uses only low-width carry terms
+(\(\{0,1\}\) and \(\{0,\dots,7\}\)) and 31-bit limb-recomposition terms, hence
+the instantiated value above.
+
+\begin{definition}[Instantiated full-family audit constants]
+\label{def:instantiated-audit-constants}
+For the current template set, define:
+\begin{equation}
+U_{\mathrm{inv}}^{\mathrm{audit}}
+=
+(2^{66}-1)(p-1)
+=
+158456324880954722595264004098,
+\label{eq:u-inv-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EF}}^{\mathrm{audit}}
+=
+(p-1)^2
+=
+4611686009837453316,
+\label{eq:u-ef-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EE}}^{\mathrm{audit}}
+=
+16(p-1)^3
+=
+158456324585806817830375522176,
+\label{eq:u-ee-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{hor}}^{\mathrm{audit}}
+=
+16(p-1)^3
+=
+158456324585806817830375522176,
+\label{eq:u-hor-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{car}}^{\mathrm{audit}}
+=
+4294967299.
+\label{eq:u-car-inst}
+\end{equation}
+For RHS-side bounds, define:
+\begin{equation}
+U_{\mathrm{inv}}^{D,\mathrm{audit}}
+=
+p-1
+=
+2147483646,
+\label{eq:u-inv-rhs-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EF}}^{D,\mathrm{audit}}
+=
+p-1
+=
+2147483646,
+\label{eq:u-ef-rhs-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EE}}^{D,\mathrm{audit}}
+=
+p-1
+=
+2147483646,
+\label{eq:u-ee-rhs-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{hor}}^{D,\mathrm{audit}}
+=
+16(p-1)^3
+=
+158456324585806817830375522176,
+\label{eq:u-hor-rhs-inst}
+\end{equation}
+\begin{equation}
+U_{\mathrm{car}}^{D,\mathrm{audit}}
+=
+4294967299.
+\label{eq:u-car-rhs-inst}
+\end{equation}
+The family-to-bound/class map is fixed as
+\[
+(f_{\mathrm{inv}},B_{f_{\mathrm{inv}}},U_{f_{\mathrm{inv}}}^{\mathrm{audit}})
+=(f_{\mathrm{inv}},2^{66},U_{\mathrm{inv}}^{\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{EF}},B_{f_{\mathrm{EF}}},U_{f_{\mathrm{EF}}}^{\mathrm{audit}})
+=(f_{\mathrm{EF}},2^{31},U_{\mathrm{EF}}^{\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{EE}},B_{f_{\mathrm{EE}}},U_{f_{\mathrm{EE}}}^{\mathrm{audit}})
+=(f_{\mathrm{EE}},2^{66},U_{\mathrm{EE}}^{\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{hor}},B_{f_{\mathrm{hor}}},U_{f_{\mathrm{hor}}}^{\mathrm{audit}})
+=(f_{\mathrm{hor}},2^{66},U_{\mathrm{hor}}^{\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{car}},B_{f_{\mathrm{car}}},U_{f_{\mathrm{car}}}^{\mathrm{audit}})
+=(f_{\mathrm{car}},2^{31},U_{\mathrm{car}}^{\mathrm{audit}}).
+\]
+\[
+(f_{\mathrm{inv}},U_{f_{\mathrm{inv}}}^{D,\mathrm{audit}})
+=(f_{\mathrm{inv}},U_{\mathrm{inv}}^{D,\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{EF}},U_{f_{\mathrm{EF}}}^{D,\mathrm{audit}})
+=(f_{\mathrm{EF}},U_{\mathrm{EF}}^{D,\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{EE}},U_{f_{\mathrm{EE}}}^{D,\mathrm{audit}})
+=(f_{\mathrm{EE}},U_{\mathrm{EE}}^{D,\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{hor}},U_{f_{\mathrm{hor}}}^{D,\mathrm{audit}})
+=(f_{\mathrm{hor}},U_{\mathrm{hor}}^{D,\mathrm{audit}}),
+\]
+\[
+(f_{\mathrm{car}},U_{f_{\mathrm{car}}}^{D,\mathrm{audit}})
+=(f_{\mathrm{car}},U_{\mathrm{car}}^{D,\mathrm{audit}}).
+\]
+\end{definition}
+
+\begin{lemma}[Instantiated full-family bound closure]
+\label{lem:instantiated-audit-closure}
+Under Definition~\ref{def:instantiated-audit-constants},
+\begin{equation}
+U_{\mathrm{inv}}^{\mathrm{audit}} < p\cdot 2^{66}+p,
+\label{eq:u-inv-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EF}}^{\mathrm{audit}} < p\cdot 2^{31}+p,
+\label{eq:u-ef-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EE}}^{\mathrm{audit}} < p\cdot 2^{66}+p,
+\label{eq:u-ee-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{hor}}^{\mathrm{audit}} < p\cdot 2^{66}+p,
+\label{eq:u-hor-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{car}}^{\mathrm{audit}} < p\cdot 2^{31}+p.
+\label{eq:u-car-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{inv}}^{D,\mathrm{audit}} + p(2^{66}-1) < r,
+\label{eq:u-inv-rhs-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EF}}^{D,\mathrm{audit}} + p(2^{31}-1) < r,
+\label{eq:u-ef-rhs-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{EE}}^{D,\mathrm{audit}} + p(2^{66}-1) < r,
+\label{eq:u-ee-rhs-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{hor}}^{D,\mathrm{audit}} + p(2^{66}-1) < r,
+\label{eq:u-hor-rhs-inst-bound}
+\end{equation}
+\begin{equation}
+U_{\mathrm{car}}^{D,\mathrm{audit}} + p(2^{31}-1) < r.
+\label{eq:u-car-rhs-inst-bound}
+\end{equation}
+\end{lemma}
+
+\begin{proof}
+\eqref{eq:u-inv-inst-bound}, \eqref{eq:u-ef-inst-bound}, and
+\eqref{eq:u-ee-inst-bound} are exactly the inverse/\(E\times F\)/\(E\times E\)
+inequalities already verified in the concrete audit block above.
+
+For \eqref{eq:u-hor-inst-bound}, by \eqref{eq:u-hor-inst} and
+\eqref{eq:u-ee-inst},
+\[
+U_{\mathrm{hor}}^{\mathrm{audit}}
+=
+U_{\mathrm{EE}}^{\mathrm{audit}}
+<
+p\cdot 2^{66}+p.
+\]
+For \eqref{eq:u-car-inst-bound}, from \eqref{eq:u-car-inst} and
+\[
+p\cdot 2^{31}+p
+=
+4611686018427387903,
+\]
+we get
+\[
+4294967299 < 4611686018427387903.
+\]
+For RHS-side bounds, we use explicit instantiated values:
+\[
+U_{\mathrm{inv}}^{D,\mathrm{audit}} + p(2^{66}-1)
+=
+158456324954741698892249694207
+<
+2^{98},
+\]
+\[
+U_{\mathrm{EF}}^{D,\mathrm{audit}} + p(2^{31}-1)
+=
+4611686016279904255
+<
+2^{98},
+\]
+\[
+U_{\mathrm{EE}}^{D,\mathrm{audit}} + p(2^{66}-1)
+=
+158456324954741698892249694207
+<
+2^{98},
+\]
+\[
+U_{\mathrm{hor}}^{D,\mathrm{audit}} + p(2^{66}-1)
+=
+316912649540548516720477732737
+<
+2^{98},
+\]
+\[
+U_{\mathrm{car}}^{D,\mathrm{audit}} + p(2^{31}-1)
+=
+4611686018427387908
+<
+2^{98}.
+\]
+Since BN254 scalar \(r\) has 254 bits, \(2^{98}<r\). Hence
+\eqref{eq:u-inv-rhs-inst-bound}--\eqref{eq:u-car-rhs-inst-bound} follow.
+\end{proof}
+
+\begin{corollary}[Instantiated no-wrap intervals for all audited families]
+\label{cor:instantiated-no-wrap-intervals}
+For every audited family
+\(f\in\{f_{\mathrm{inv}},f_{\mathrm{EF}},f_{\mathrm{EE}},f_{\mathrm{hor}},f_{\mathrm{car}}\}\),
+if a satisfying row obeys
+\(\wt{L}_f\le U_f^{\mathrm{audit}}\),
+\(\wt{D}_f\le U_f^{D,\mathrm{audit}}\), and \(\wt{Q}_f\in[0,B_f)\), then
+\[
+0\le \wt{L}_f < pB_f+p < r.
+\]
+\[
+0\le \wt{D}_f + p\wt{Q}_f
+\le
+U_f^{D,\mathrm{audit}} + p(B_f-1)
+< r.
+\]
+\end{corollary}
+
+\begin{proof}
+Immediate from Definition~\ref{def:instantiated-audit-constants},
+Lemma~\ref{lem:instantiated-audit-closure}, and \(\wt{Q}_f\in[0,B_f)\).
+\end{proof}
+
+\begin{lemma}[Row-range discipline from audited templates]
+\label{lem:row-range-from-audit}
+Assume:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item Definitions~\ref{def:selector-relation-realization},
+    \ref{def:template-realization-coherence}, and
+    \ref{def:rowtable-zero-extension} hold, and every active local scalar
+    relation instance is matched to one audited template \((f,\tau)\) with
+    \(\tau\in\mathcal T_f\);
+    \item all input wires satisfy the class/range constraints from
+    Definitions~\ref{def:complete-quotient-coverage} and
+    \ref{def:selector-residue-carry-wiring}, and
+    \eqref{eq:residue-recompose}--\eqref{eq:u8-lookup};
+    \item Definitions~\ref{def:template-audit-certificate} and
+    \ref{def:instantiated-audit-constants} hold, and
+    Lemma~\ref{lem:instantiated-audit-closure} applies.
+\end{enumerate}
+Then Definition~\ref{def:row-range-discipline} holds for all satisfying
+witnesses. More precisely, for every row-table entry \((t,j)\), there exists
+\(B_t\in\{2^{31},2^{66}\}\) such that
+\[
+0 \le \wt{L_t[j]} < pB_t + p < r.
+\]
+If \(j\in\Omega_t\), one may take \(B_t=B_f\) for the matched family \(f\); if
+\(j\notin\Omega_t\), the claim is immediate from
+Definition~\ref{def:rowtable-zero-extension}.
+\end{lemma}
+
+\begin{proof}
+Fix any row-table entry \((t,j)\).
+
+If \(j\notin\Omega_t\), then
+Definition~\ref{def:rowtable-zero-extension} gives \(L_t[j]=0\), so
+\[
+0\le \wt{L_t[j]}=0 < pB_t+p<r
+\]
+for either choice \(B_t\in\{2^{31},2^{66}\}\).
+
+Now assume \(j\in\Omega_t\). By (i), there is a unique active local scalar
+relation instance realizing \((t,j)\), matched to some audited template
+\((f,\tau)\). By Lemma~\ref{lem:exact-audited-template-evaluation},
+\[
+\wt{L_t[j]} = L_{f,\tau}(\wt{\mathbf z}_j)
+\]
+and
+\[
+0\le \wt{L_t[j]}\le U_f^{\mathrm{audit}}.
+\]
+By (iii) and Corollary~\ref{cor:instantiated-no-wrap-intervals},
+\[
+U_f^{\mathrm{audit}} < pB_f+p < r.
+\]
+Therefore
+\[
+0\le \wt{L_t[j]} < pB_f+p<r.
+\]
+Setting \(B_t:=B_f\) gives the claim.
+\end{proof}
+
+\begin{lemma}[RHS no-wrap from audited templates]
+\label{lem:rhs-nowrap-from-audit}
+Assume:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item all assumptions of Lemma~\ref{lem:row-range-from-audit};
+    \item Definitions~\ref{def:complete-quotient-coverage},
+    \ref{def:selector-quotient-wiring}, and
+    \ref{def:family-quotient-class-coherence} hold;
+    \item Lemma~\ref{lem:no-omitted-quotient-wire} applies.
+\end{enumerate}
+Then for each row relation \(L_t[j]=D_t[j]+pQ_t[j]\),
+\[
+0\le \wt{D_t[j]}+p\wt{Q_t[j]}<r.
+\]
+If \(j\in\Omega_t\) and the matched template family is \(f\), then one may use
+that family's class \(B_f\); if \(j\notin\Omega_t\), the claim is immediate
+from Definition~\ref{def:rowtable-zero-extension}.
+\end{lemma}
+
+\begin{proof}
+Fix \((t,j)\).
+
+If \(j\notin\Omega_t\), then Definition~\ref{def:rowtable-zero-extension}
+gives \(D_t[j]=Q_t[j]=0\), so the claim is immediate.
+
+Now assume \(j\in\Omega_t\) and let \(f\) be the family of the matched audited
+template. By Lemma~\ref{lem:exact-audited-template-evaluation},
+\[
+0\le \wt{D_t[j]} = D_{f,\tau}(\wt{\mathbf z}_j)\le U_f^{D,\mathrm{audit}}.
+\]
+By Lemma~\ref{lem:no-omitted-quotient-wire}, \(Q_t[j]\) is range-constrained by
+its slot class. By Definition~\ref{def:family-quotient-class-coherence}, that
+slot class matches the family class \(B_f\). Hence
+\[
+\wt{Q_t[j]}\in[0,B_f).
+\]
+Therefore
+\[
+0\le \wt{D_t[j]}+p\wt{Q_t[j]}
+\le
+U_f^{D,\mathrm{audit}}+p(B_f-1).
+\]
+By Definition~\ref{def:template-audit-certificate} and
+Lemma~\ref{lem:instantiated-audit-closure},
+\[
+U_f^{D,\mathrm{audit}}+p(B_f-1)<r.
+\]
+Combining gives the claim.
+\end{proof}
+
+\section{Coverage and wiring certificates}
+\label{app:coverage-and-wiring}
+This appendix records the explicit quotient inventory and selector-level
+wiring certificates as public synthesis metadata.
+
+\subsection{Coverage certificate (explicit inventory)}
+
+We materialize Definition~\ref{def:complete-quotient-coverage} as a public
+inventory certificate. The certificate lists every quotient/carry family,
+its semantic origin, and its assigned range class.
+
+\begin{center}
+\begin{tabular}{|l|l|l|l|}
+\hline
+Family & Semantic origin & Class & Reason / bound target \\
+\hline
+\(Q_{\mathrm{inv}}\) & inverse rows \(L=q\cdot d\) & \(\mathcal Q_{66}\) & product can reach \(\Theta(p\cdot 2^{66})\) \\
+\hline
+\(Q_{\mathrm{EF},k}\) (\(k=0,\dots,3\)) & \(E\times F\) coordinate rows & \(\mathcal Q_{31}\) & \(L< p^2 < p\cdot 2^{31}+p\) \\
+\hline
+\(Q_{\mathrm{EE},k}\) (\(k=0,\dots,3\)) & \(E\times E\) coordinate rows & \(\mathcal Q_{66}\) & conservative high-range class \\
+\hline
+\(q_3,q_2,q_1\) & promoted Horner rows & \(\mathcal Q_{66}\) & promoted Horner subtemplate normalization quotients \\
+\hline
+\(Q_{\mathrm{car}}\) & carry-normalization rows & \(\mathcal Q_{31}\) & low-width carry transfer \\
+\hline
+\(c_2,c_1,v\) & boolean carry rows & \(\Cset_{\mathrm{bit}}\) & \(c(c-1)=0\) \\
+\hline
+\(u\) & 3-bit carry rows & \(\Cset_8\) & \(u\in\{0,\dots,7\}\) \\
+\hline
+\end{tabular}
+\end{center}
+
+\paragraph{Column-level class map (no omitted quotient symbol).}
+The quotient inventory is explicitly decomposed as
+\[
+\mathcal Q
+=
+\mathcal Q_{\mathrm{inv}}
+\sqcup
+\mathcal Q_{\mathrm{EF}}
+\sqcup
+\mathcal Q_{\mathrm{EE}}
+\sqcup
+\mathcal Q_{\mathrm{hor}}
+\sqcup
+\mathcal Q_{\mathrm{car}},
+\]
+where
+\begin{align*}
+\mathcal Q_{\mathrm{inv}}
+&:=
+\{q_{\mathrm{inv}}^{(k)} \mid k\in\{0,1,2,3\}\},
+\\
+\mathcal Q_{\mathrm{EF}}
+&:=
+\{q_{\mathrm{EF}}^{(k)} \mid k\in\{0,1,2,3\}\},
+\\
+\mathcal Q_{\mathrm{EE}}
+&:=
+\{q_{\mathrm{EE}}^{(k)} \mid k\in\{0,1,2,3\}\},
+\\
+\mathcal Q_{\mathrm{hor}}
+&:=
+\{q_3^{(k)},q_2^{(k)},q_1^{(k)} \mid k\in\{0,1,2,3\}\},
+\\
+\mathcal Q_{\mathrm{car}}
+&:=
+\{q_{\mathrm{car}}^{(k)} \mid k\in\{0,1,2,3\}\}.
+\end{align*}
+Class assignments are fixed as
+\[
+\mathcal Q_{31}=\mathcal Q_{\mathrm{EF}}\sqcup\mathcal Q_{\mathrm{car}},
+\qquad
+\mathcal Q_{66}=\mathcal Q_{\mathrm{inv}}\sqcup\mathcal Q_{\mathrm{EE}}\sqcup\mathcal Q_{\mathrm{hor}}.
+\]
+Hence each promoted Horner row contributes exactly
+\[
+|\mathcal Q_{\mathrm{hor}}| = 12
+\]
+cells in \(\mathcal Q_{66}\), matching \(N_{66}^{\mathrm{round}}=12\) for the
+Horner block. This scope excludes carry-normalization rows; their quotient
+cells are \(q_{\mathrm{car}}^{(k)}\in\mathcal Q_{\mathrm{car}}\subset\mathcal Q_{31}\)
+and are accounted separately in \(N_{31}\).
+Any quotient symbol not in this certificate is invalid and circuit synthesis
+rejects the instance.
+
+\begin{definition}[Selector-level quotient wiring certificate]
+\label{def:selector-quotient-wiring}
+Let \(\Sigma\) be the set of enabled row selectors, and for each
+\(s\in\Sigma\), let \(\Lambda_Q(s)\) be the local quotient slots used by the
+row template of \(s\). Let \(\Omega_s\subseteq \Omega\) be the rows on which
+selector \(s\) is active. The public metadata includes a deterministic map
+\[
+\omega_Q:
+\{(s,\ell,j)\mid s\in\Sigma,\;\ell\in\Lambda_Q(s),\;j\in\Omega_s\}
+\to
+\mathcal Q.
+\]
+The certificate is valid only if:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \textbf{Single-valued mapping:} each local quotient slot \((s,\ell,j)\) maps
+    to exactly one global quotient column \(\omega_Q(s,\ell,j)\);
+    \item \textbf{Class consistency:} each local slot has a fixed class tag
+    \(b_{s,\ell}\in\{31,66\}\), and
+    \[
+    \kappa(\omega_Q(s,\ell,j)) = b_{s,\ell}
+    \]
+    for all active rows \(j\in\Omega_s\);
+    \item \textbf{Exact coverage:}
+    \[
+    \operatorname{Im}(\omega_Q)=\mathcal Q;
+    \]
+    \item \textbf{No undeclared symbol:} synthesis rejects any quotient symbol
+    not in \(\mathcal Q\).
+\end{enumerate}
+\end{definition}
+
+\begin{lemma}[No omitted quotient wire]
+\label{lem:no-omitted-quotient-wire}
+Under Definitions~\ref{def:complete-quotient-coverage} and
+\ref{def:selector-quotient-wiring}, every instantiated local quotient slot is
+range-constrained by exactly one of
+\eqref{eq:q31-recompose}--\eqref{eq:q31-lookups} or
+\eqref{eq:q66-recompose}--\eqref{eq:q66-lookups}.
+\end{lemma}
+
+\begin{proof}
+Fix an active local quotient slot \((s,\ell,j)\). By
+Definition~\ref{def:selector-quotient-wiring}(i), it maps to a unique column
+\(q:=\omega_Q(s,\ell,j)\in\mathcal Q\). By
+Definition~\ref{def:complete-quotient-coverage}, \(q\) lies in exactly one of
+\(\mathcal Q_{31}\) or \(\mathcal Q_{66}\), and each class is tied to exactly
+one range-constraint system. Hence the slot is constrained by exactly one of
+the two systems above. By (iii)--(iv), no instantiated quotient can bypass this
+partition.
+\end{proof}
+
+\begin{definition}[Selector-level residue/carry wiring certificate]
+\label{def:selector-residue-carry-wiring}
+Let \(\Sigma\) be the set of enabled row selectors. For each
+\(s\in\Sigma\), let \(\Lambda_N(s)\) be the local non-quotient slots of the row
+template of \(s\) (residue or carry slots), and \(\Omega_s\subseteq\Omega\) the
+rows where \(s\) is active. Each local slot \((s,\ell)\) has a fixed tag
+\(\tau_{s,\ell}\in\{p,\mathrm{bit},8\}\). The public metadata includes a
+deterministic map
+\[
+\omega_N:
+\{(s,\ell,j)\mid s\in\Sigma,\;\ell\in\Lambda_N(s),\;j\in\Omega_s\}
+\to
+\Cset_p\sqcup\Cset_{\mathrm{bit}}\sqcup\Cset_8.
+\]
+The certificate is valid only if:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \textbf{Single-valued mapping:} each local slot \((s,\ell,j)\) maps to exactly
+    one global column \(\omega_N(s,\ell,j)\);
+    \item \textbf{Tag consistency:}
+    \[
+    \tau_{s,\ell}=p \Rightarrow \omega_N(s,\ell,j)\in\Cset_p,\quad
+    \tau_{s,\ell}=\mathrm{bit} \Rightarrow \omega_N(s,\ell,j)\in\Cset_{\mathrm{bit}},\quad
+    \tau_{s,\ell}=8 \Rightarrow \omega_N(s,\ell,j)\in\Cset_8;
+    \]
+    \item \textbf{Exact coverage by tag:}
+    \[
+    \operatorname{Im}(\omega_N\!\mid_{\tau=p})=\Cset_p,\quad
+    \operatorname{Im}(\omega_N\!\mid_{\tau=\mathrm{bit}})=\Cset_{\mathrm{bit}},\quad
+    \operatorname{Im}(\omega_N\!\mid_{\tau=8})=\Cset_8;
+    \]
+    \item \textbf{No undeclared symbol:} synthesis rejects any residue/carry
+    symbol outside \(\Cset_p\sqcup\Cset_{\mathrm{bit}}\sqcup\Cset_8\).
+\end{enumerate}
+\end{definition}
+
+\begin{lemma}[No omitted residue/carry wire]
+\label{lem:no-omitted-residue-carry-wire}
+Under Definition~\ref{def:selector-residue-carry-wiring}, every instantiated
+local residue/carry slot is range-constrained by exactly one of
+\eqref{eq:residue-recompose}--\eqref{eq:residue-not-p},
+\eqref{eq:bit-carry}, or \eqref{eq:u8-lookup}.
+\end{lemma}
+
+\begin{proof}
+Fix any active local non-quotient slot \((s,\ell,j)\). By
+Definition~\ref{def:selector-residue-carry-wiring}(i), it maps to a unique
+column \(W:=\omega_N(s,\ell,j)\). By tag consistency (ii), \(W\) belongs to
+exactly one of \(\Cset_p,\Cset_{\mathrm{bit}},\Cset_8\), and each class is tied
+to exactly one binding rule family: residue constraints
+\eqref{eq:residue-recompose}--\eqref{eq:residue-not-p}, bit carry
+\eqref{eq:bit-carry}, or 3-bit carry lookup \eqref{eq:u8-lookup}. By (iii)--(iv),
+no instantiated residue/carry slot can bypass this partition.
+\end{proof}
+
+\begin{definition}[Selector-level scalar-relation realization map]
+\label{def:selector-relation-realization}
+Let \(\Sigma\) be the set of enabled row selectors. For each \(s\in\Sigma\),
+let \(\Lambda_R(s)\) be the set of local scalar relation slots in selector
+template \(s\), and let \(\Omega_s\subseteq\Omega\) be the rows where \(s\) is
+active. Let \(\mathcal I_{\mathrm{rel}}\) be the global relation-index set for
+row tables \((L_t[j],D_t[j],Q_t[j])_{(t,j)\in\mathcal I_{\mathrm{rel}}\times\Omega}\).
+
+The public metadata includes a deterministic map
+\[
+\omega_R:
+\{(s,\rho,j)\mid s\in\Sigma,\;\rho\in\Lambda_R(s),\;j\in\Omega_s\}
+\to
+\mathcal I_{\mathrm{rel}}.
+\]
+The certificate is valid only if:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \textbf{Single-valued mapping:} each active local scalar relation instance
+    \((s,\rho,j)\) maps to exactly one relation index
+    \(t=\omega_R(s,\rho,j)\);
+    \item \textbf{Exact active coverage / no duplication:} for each
+    \((t,j)\) with \(j\in\Omega_t\), there exists a unique active local scalar
+    relation instance \((s,\rho,j)\) such that \(\omega_R(s,\rho,j)=t\);
+    \item \textbf{Realization rule:} for that unique \((s,\rho,j)\), the row
+    table values satisfy
+    \[
+    L_t[j]=\mathcal L_{s,\rho}(\mathbf z_j),\quad
+    D_t[j]=\mathcal D_{s,\rho}(\mathbf z_j),\quad
+    Q_t[j]=\mathcal Q_{s,\rho}(\mathbf z_j),
+    \]
+    where \(\mathbf z_j\) is the row-local witness tuple and
+    \(\mathcal L_{s,\rho},\mathcal D_{s,\rho},\mathcal Q_{s,\rho}\) are the
+    declared local realization expressions for slot \((s,\rho)\);
+    \item \textbf{No undeclared relation:} synthesis rejects any active local
+    scalar relation instance not covered by \(\omega_R\).
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Template/realization coherence]
+\label{def:template-realization-coherence}
+Let \(\Sigma\) be the enabled selector set from
+Definition~\ref{def:selector-relation-realization}. The public metadata
+includes a deterministic map
+\[
+\omega_T:
+\{(s,\rho,j)\mid s\in\Sigma,\;\rho\in\Lambda_R(s),\;j\in\Omega_s\}
+\to
+\{(f,\tau)\mid f\in\mathcal F,\;\tau\in\mathcal T_f\}.
+\]
+For each active local scalar relation instance \((s,\rho,j)\), define
+\[
+t:=\omega_R(s,\rho,j),
+\qquad
+(f,\tau):=\omega_T(s,\rho,j).
+\]
+Let \(\mathbf z_j\) be the row-local field tuple used by the local realization
+expressions, and let \(\wt{\mathbf z}_j\) be the tuple of canonical integer
+lifts of its ranged entries. Coherence requires
+\[
+L_t[j]
+=
+\mathcal L_{s,\rho}(\mathbf z_j)
+=
+\bigl[L_{f,\tau}(\wt{\mathbf z}_j)\bigr]_R,
+\]
+\[
+D_t[j]
+=
+\mathcal D_{s,\rho}(\mathbf z_j)
+=
+\bigl[D_{f,\tau}(\wt{\mathbf z}_j)\bigr]_R,
+\]
+where \([\cdot]_R\) denotes reduction modulo \(r\) followed by the canonical
+embedding into \(R\). Quotient slots appearing in the same instantiated
+template must satisfy Definition~\ref{def:family-quotient-class-coherence}.
+\end{definition}
+
+\paragraph{Worked end-to-end example (an \(E\times E\) coordinate row).}
+Fix an active row \(j^\star\in\Omega\) and a coordinate \(k\in\{0,1,2,3\}\).
+Consider a local scalar relation instance \((s,\rho,j^\star)\) whose selector
+slot corresponds to the \(E\times E\) coordinate relation for coordinate \(k\),
+and let
+\[
+t:=\omega_R(s,\rho,j^\star),
+\qquad
+(f,\tau):=\omega_T(s,\rho,j^\star).
+\]
+In this case we have \(f=\mathrm{EE}\) and one can take \(\tau=k\). Let the
+row-local witness tuple be
+\[
+\mathbf z_{j^\star}=(x_0,\dots,x_3,\;y_0,\dots,y_3,\;c)\in R^{9},
+\]
+where canonical binding implies there exist integer lifts
+\(\wt{x}_a,\wt{y}_b,\wt{c}\in I_p\) for all \(a,b\in\{0,1,2,3\}\). The declared
+local realization expressions for this slot take the concrete form
+\[
+L_t[j^\star]
+=
+\mathcal L_{s,\rho}(\mathbf z_{j^\star})
+=
+\sum_{a,b=0}^{3} m_{ab}^k\,x_a y_b,
+\qquad
+D_t[j^\star]
+=
+\mathcal D_{s,\rho}(\mathbf z_{j^\star})
+=
+c,
+\]
+with quotient value \(Q_t[j^\star]=\mathcal Q_{s,\rho}(\mathbf z_{j^\star})\)
+wired to the family slot \(Q_{\mathrm{EE},k}\). Template/realization coherence
+then means these match the audited normalized templates
+\[
+L_{\mathrm{EE},k}(\wt{\mathbf z}_{j^\star})
+:=
+\sum_{a,b=0}^{3} m_{ab}^k\,\wt{x}_a \wt{y}_b,
+\qquad
+D_{\mathrm{EE},k}(\wt{\mathbf z}_{j^\star})
+:=
+\wt{c},
+\]
+via
+\(
+L_t[j^\star]=[L_{\mathrm{EE},k}(\wt{\mathbf z}_{j^\star})]_R
+\)
+and
+\(
+D_t[j^\star]=[D_{\mathrm{EE},k}(\wt{\mathbf z}_{j^\star})]_R
+\).
+The audit certificate bounds the coefficients by
+\(0\le m_{ab}^k\le M_{\mathrm{EE}}^{\max}\le p-1\) and assigns the family class
+\(B_{\mathrm{EE}}=2^{66}\), yielding the certified family bounds
+\(
+U_{\mathrm{EE}}^{\mathrm{audit}}=16(p-1)^3
+\)
+and
+\(
+U_{\mathrm{EE}}^{D,\mathrm{audit}}=p-1
+\).
+Here \(m_{ab}^k\) denotes the audited non-negative template coefficient in the
+instantiated library, not a raw signed basis coefficient.
+Finally, the coverage/wiring certificate assigns \(Q_{\mathrm{EE},k}\) to a
+\(\mathcal Q_{66}\) column, so canonical binding gives
+\(\wt{Q_t[j^\star]}\in[0,2^{66})\). This is the concrete
+``selector \(\to\) realization \(\to\) normalized \((L,D,Q)\) \(\to\) bound
+\(\to\) quotient class'' chain used by the exactness argument.
+
+\begin{lemma}[Exact evaluation of audited templates on active rows]
+\label{lem:exact-audited-template-evaluation}
+Assume Definitions~\ref{def:selector-relation-realization},
+\ref{def:template-realization-coherence}, and
+\ref{def:template-audit-certificate}. Let \((t,j)\) be an active row-table
+entry, let \((s,\rho,j)\) be its unique realizing local scalar relation
+instance, and let \((f,\tau)\) be the unique audited template assigned to that
+instance. If all row-local inputs lie in their certified integer intervals, then
+\[
+L_t[j]
+=
+\bigl[L_{f,\tau}(\wt{\mathbf z}_j)\bigr]_R,
+\qquad
+D_t[j]
+=
+\bigl[D_{f,\tau}(\wt{\mathbf z}_j)\bigr]_R,
+\]
+with
+\[
+0\le L_{f,\tau}(\wt{\mathbf z}_j)\le U_f^{\mathrm{audit}},
+\qquad
+0\le D_{f,\tau}(\wt{\mathbf z}_j)\le U_f^{D,\mathrm{audit}}.
+\]
+Consequently, whenever
+\[
+U_f^{\mathrm{audit}}<r,
+\qquad
+U_f^{D,\mathrm{audit}}<r,
+\]
+the field values \(L_t[j]\) and \(D_t[j]\) are the images in \(R\) of those
+exact integers, i.e.
+\[
+\wt{L_t[j]} = L_{f,\tau}(\wt{\mathbf z}_j),
+\qquad
+\wt{D_t[j]} = D_{f,\tau}(\wt{\mathbf z}_j).
+\]
+\end{lemma}
+
+\begin{proof}
+The displayed field identities are exactly the content of
+Definition~\ref{def:template-realization-coherence}. By
+Lemma~\ref{lem:template-bound-soundness},
+\[
+0\le L_{f,\tau}(\wt{\mathbf z}_j)\le U_f^{\mathrm{audit}},
+\qquad
+0\le D_{f,\tau}(\wt{\mathbf z}_j)\le U_f^{D,\mathrm{audit}}.
+\]
+Expand \(L_{f,\tau}\) and \(D_{f,\tau}\) as in
+Definition~\ref{def:template-audit-certificate}: they are sums of linear terms
+\(a\,z_u\) and quadratic terms \(b\,z_u z_v\) with non-negative integer
+coefficients. Since \(U_f^{\mathrm{audit}}<r\) and \(U_f^{D,\mathrm{audit}}<r\),
+also the per-template bounds \(U_{f,\tau}^{L}\) and \(U_{f,\tau}^{D}\) are
+\(<r\). By Definition~\ref{def:template-audit-certificate}, every linear
+contribution \(a_{f,\tau,u}U_{f,u}^{\max}\) and quadratic contribution
+\(b_{f,\tau,uv}U_{f,u}^{\max}U_{f,v}^{\max}\) is a non-negative summand of
+\(U_{f,\tau}^{L}\) or \(U_{f,\tau}^{D}\), hence is \(<r\). Lemma~\ref{lem:monomial-nowrap}
+therefore applies to each multiplication. For every nonzero quadratic term,
+\(b_{f,\tau,uv}\ge 1\), so
+\[
+U_{f,u}^{\max}U_{f,v}^{\max}
+\le
+b_{f,\tau,uv}U_{f,u}^{\max}U_{f,v}^{\max}
+<
+r.
+\]
+Hence Lemma~\ref{lem:monomial-nowrap} applies first to \(z_u z_v\), and then
+again to multiplication by \(b_{f,\tau,uv}\). Zero-coefficient terms are
+omitted from the template representation. Thus every summand evaluates in \(R\)
+as the image of its exact integer value. Because all summands are non-negative
+and the total is \(<r\), addition does not wrap either, so the field evaluations
+coincide with the images in \(R\) of the total integer evaluations. The
+canonical lifts are therefore exactly the displayed integers.
+\end{proof}
+
+\begin{lemma}[No omitted active local relation]
+\label{lem:no-omitted-active-relation}
+Under Definition~\ref{def:selector-relation-realization}, every active local
+scalar relation instance contributes to exactly one row-table entry
+\((L_t[j],D_t[j],Q_t[j])\), and every active row-table entry arises from exactly
+one such instance.
+\end{lemma}
+
+\begin{proof}
+Immediate from
+Definition~\ref{def:selector-relation-realization}(i)--(ii).
+\end{proof}
+
+\begin{definition}[Row-table activity partition and zero extension]
+\label{def:rowtable-zero-extension}
+For each relation index \(t\), there is a public active-row set
+\(\Omega_t\subseteq\Omega\), and row-table columns
+\((L_t[j],D_t[j],Q_t[j])_{j\in\Omega}\). The circuit enforces:
+\begin{enumerate}[label=(\roman*),leftmargin=2em]
+    \item \textbf{Active-row realization:} for each \(j\in\Omega_t\), the tuple
+    \((L_t[j],D_t[j],Q_t[j])\) is instantiated from exactly one active local
+    scalar relation instance, consistent with
+    Definition~\ref{def:selector-relation-realization};
+    \item \textbf{Inactive-row fixing:} for each \(j\in\Omega\setminus\Omega_t\),
+    \[
+    L_t[j]=0,\qquad D_t[j]=0,\qquad Q_t[j]=0.
+    \]
+\end{enumerate}
+\end{definition}
+
+\begin{lemma}[No inactive-row influence on compressed evaluation]
+\label{lem:no-inactive-row-influence}
+Under Definitions~\ref{def:rowtable-zero-extension} and
+\ref{def:compression-rowwise-rhs-consistency}, for each relation index \(t\) and
+each \(j\in\Omega\setminus\Omega_t\),
+\[
+L_t(\omega^j)-D_t(\omega^j)-pQ_t(\omega^j)=0.
+\]
+Consequently, any non-zero residual entry occurs only on active rows.
+\end{lemma}
+
+\begin{proof}
+Fix \(t\) and \(j\in\Omega\setminus\Omega_t\). By
+Definition~\ref{def:rowtable-zero-extension}, \(L_t[j]=D_t[j]=Q_t[j]=0\). By
+Definition~\ref{def:compression-rowwise-rhs-consistency},
+\(L_t(\omega^j)=L_t[j]\), \(D_t(\omega^j)=D_t[j]\), and \(Q_t(\omega^j)=Q_t[j]\).
+Substituting gives the claimed zero residual.
+\end{proof}
+
+\section{Supplementary implemented B1-lite circuit-shape comparison}
+\label{app:b1lite-supplement}
+This appendix records the implemented Halo2 harness comparison referenced in
+the main text. It remains a circuit-shape comparison under one backend, not a
+task-equated benchmark.
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\begin{tabular}{|l|r|r|r|}
+\hline
+Metric & Repair fragment & Repair B2 paired package & B1-lite baseline \\
+\hline
+Rows & 72 & 76 & 352 \\
+Lookup cells & 152 & 160 & 126 \\
+Native multiplicative constraints & 56 & 56 & 256 \\
+Linear constraints & 56 & 60 & 63 \\
+\hline
+\end{tabular}
+\caption{Implemented Halo2 circuit-shape comparison from the artifact harness.
+The B1-lite baseline includes explicit \(16\times16\) limb cross products and
+carry-chain constraints for a \(256\)-bit multiplication, but excludes modular
+reduction and CRT-consistency checks; thus it is a conservative partial
+baseline for the implemented schoolbook-limb wrong-field family.}
+\label{tab:b1lite-implemented-comparison-appendix}
+\end{table}
+
+In this harness, B1-lite versus the repair fragment gives
+\(352/72=4.89\times\) in rows and \(256/56=4.57\times\) in multiplicative
+constraints; versus the Repair B2 paired package, it gives
+\(352/76=4.63\times\) in rows and again \(256/56=4.57\times\) in multiplicative
+constraints. The row counts are backend-specific physical-row counts and are
+not expected to be a simple function of symbolic arithmetic-object counts,
+because lookup batching and gate packing can place multiple objects in one row.
+The lookup-cell ratio goes in the opposite direction, matching the design goal
+of this repair layer: trading multiplicative constraints for batched native
+lookups.\footnote{Artifact repository:
+\url{https://github.com/junbyjun1238/zk2-bench-b1-lite}
+(commit \texttt{1c0097a1923a008a3d0cf6f4034b8ba307cd9765}).
+Relevant files are \texttt{src/main.rs} and \texttt{results.md}. Reproduce by
+running \texttt{cargo run --release}.}
+
+% END OPTION2 APPENDICES
+
+\begin{thebibliography}{99}
+
+\bibitem{plonk2019}
+\newblock PLONK: Permutations over Lagrange-bases for Oecumenical Noninteractive arguments of Knowledge.
+\newblock IACR ePrint 2019/953, 2019.
+\newblock \url{https://eprint.iacr.org/2019/953}.
+
+\bibitem{plookup2020}
+\newblock Plookup: A simplified polynomial protocol for lookup tables.
+\newblock IACR ePrint 2020/315, 2020.
+\newblock \url{https://eprint.iacr.org/2020/315}.
+
+\bibitem{lookup-sok-2025}
+SoK: Lookup Table Arguments in Zero-Knowledge Proof Systems.
+\newblock IACR ePrint 2025/1876, 2025.
+\newblock \url{https://eprint.iacr.org/2025/1876}.
+
+\bibitem{foreignfield2025}
+\newblock Efficient Foreign-Field Arithmetic in PLONK.
+\newblock IACR ePrint 2025/695, 2025.
+\newblock \url{https://eprint.iacr.org/2025/695}.
+
+\bibitem{halo2hackmdnote}
+SoraSuegami.
+\newblock Halo2 foreign-field quotient/remainder note.
+\newblock HackMD technical note.
+\newblock \url{https://hackmd.io/@SoraSuegami/By0JRu7zi}.
+
+\end{thebibliography}
+\end{document}

@@ -1,0 +1,33 @@
+﻿{
+    "backend_instance_id":  "h2-dq-v1",
+    "backend_family":  "halo2-style plonkish lookup backend",
+    "instance_binding":  {
+                             "certificate_path":  "certificates/public_certificate.json",
+                             "certificate_payload_sha256":  "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
+                             "checker_path":  "scripts/check_public_certificate.py",
+                             "checker_sha256":  "b489b8c55a6c02cd176f961dfc0121e08f3b61d422cd30f7502a7c5039865790",
+                             "manuscript_path":  "wrapper_note_option2.tex",
+                             "manuscript_sha256":  "e7469113f27efc3c2a2a93187a554b00c36f6da1c4e9244009d9078390f9b8dd"
+                         },
+    "fiat_shamir_schedule":  {
+                                 "model":  "ROM",
+                                 "domain_separator":  "h2-dq-v1",
+                                 "challenge_order":  [
+                                                         {
+                                                             "name":  "lambda_vec",
+                                                             "description":  "aggregation coefficients (lambda_t)_t for N(X)"
+                                                         },
+                                                         {
+                                                             "name":  "zeta",
+                                                             "description":  "evaluation point for main compressed check",
+                                                             "constraint":  "zeta_not_in_Omega"
+                                                         }
+                                                     ]
+                             },
+    "acceptance_contract":  {
+                                "main_check_equation":  "sum_t lambda_t (l_t - d_t - p q_t) = h Z_Omega(zeta)",
+                                "rowwise_interface":  "Definition~def:compression-rowwise-rhs-consistency",
+                                "degree_discipline":  "deg(Q_t)\u003cm and backend-enforced committed polynomial degree bounds",
+                                "note":  "This manifest pins one concrete backend profile used by Theorem~thm:backend-instantiated-closure."
+                            }
+}

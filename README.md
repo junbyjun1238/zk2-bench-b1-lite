@@ -1,6 +1,9 @@
-﻿# B1-Lite Benchmark Harness
+﻿# B1-Lite Benchmark Harness + Companion Artifact Package
 
-This artifact provides a reproducible Halo2 circuit-shape comparison used by the wrapper repair note.
+This repository contains:
+- a reproducible Halo2 circuit-shape comparison harness used in the note, and
+- the companion public artifact package referenced by `wrapper_note_option2.tex`
+  (`certificate/checker/manifest/manuscript`).
 
 ## Scope
 
@@ -8,20 +11,37 @@ This artifact provides a reproducible Halo2 circuit-shape comparison used by the
 - Comparison type: structural circuit-shape comparison (not task-equated, not prover-time benchmark)
 - Baselines:
   - Repair fragment (promoted-Horner binding fragment)
-  - Repair paired package (fragment + carry-normalization q31 add-on)
+  - Repair B2 paired package (fragment + carry-normalization q31 add-on)
   - B1-lite schoolbook wrong-field baseline (16x16 limb cross-products + carry chain)
 
-## Repository contents
+## Repository Contents
 
-- `src/main.rs`: reproducible harness and printed metrics
-- `results.md`: current measured numbers and ratios
-- `Cargo.toml`, `Cargo.lock`: pinned dependencies for reproduction
+- Benchmark harness:
+  - `src/main.rs`
+  - `results.md`
+  - `Cargo.toml`, `Cargo.lock`
+- Companion artifact package:
+  - `wrapper_note_option2.tex`
+  - `certificates/public_certificate.json`
+  - `certificates/h2dq_backend_instance.json`
+  - `scripts/check_public_certificate.py`
+  - `artifact_schema_supplement.md`
 
 ## Reproduction
 
-```powershell
-Set-Location "C:\Users\parks\Desktop\새 폴더\zk2\bench_b1_lite"
+1) Benchmark harness:
+
+```bash
 cargo run --release
+```
+
+2) Certificate + pinned-backend manifest checks:
+
+```bash
+python scripts/check_public_certificate.py \
+  --certificate certificates/public_certificate.json \
+  --manuscript wrapper_note_option2.tex \
+  --backend-instance certificates/h2dq_backend_instance.json
 ```
 
 ## Notes
