@@ -55,6 +55,7 @@ This note can be extended into open-source public goods primarily through
 engineering/productization work (not new core algebra). The current checker is
 treated as a research artifact baseline (PoC), and grant milestones start from
 public-good hardening work rather than re-billing existing code.
+Budget basis for funded milestones below: USD 42,000 total.
 
 ### M0 (Completed, non-funded): Research Artifact Baseline
 
@@ -77,7 +78,7 @@ Exit criteria:
 - checker and schema docs reference the same tagged version.
 
 Payment trigger:
-- 7 percent.
+- 7 percent (USD 2,940).
 
 ### M1-2 (1 week): Deterministic Repro Pack
 
@@ -88,7 +89,7 @@ Exit criteria:
 - identical verification outputs from a clean machine run.
 
 Payment trigger:
-- 6 percent.
+- 6 percent (USD 2,520).
 
 ### M1-3 (1 week): Negative-Test Corpus
 
@@ -99,7 +100,7 @@ Exit criteria:
 - checker fails deterministically on each injected defect case.
 
 Payment trigger:
-- 6 percent.
+- 6 percent (USD 2,520).
 
 ### M1-4 (1 week): Third-Party Replay
 
@@ -110,7 +111,7 @@ Exit criteria:
 - external runner reproduces success and failure cases using only published docs.
 
 Payment trigger:
-- 6 percent.
+- 6 percent (USD 2,520).
 
 ### M2 (4 weeks): Reusable Library (`h2dq-repair`)
 
@@ -122,7 +123,7 @@ Exit criteria:
 - external user can instantiate the repair fragment without editing internals.
 
 Payment trigger:
-- 30 percent.
+- 30 percent (USD 12,600).
 
 ### M3 (4 weeks): Tooling (`h2dq-cert` and `h2dq-lint`)
 
@@ -134,7 +135,7 @@ Exit criteria:
 - automated detection of injected wiring/coverage/certificate faults.
 
 Payment trigger:
-- 25 percent.
+- 25 percent (USD 10,500).
 
 ### M4 (3 weeks): Backend Integration and Public Release
 
@@ -147,4 +148,4 @@ Exit criteria:
 - independent end-to-end installation and run from README only.
 
 Payment trigger:
-- 20 percent.
+- 20 percent (USD 8,400).
