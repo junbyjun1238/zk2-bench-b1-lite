@@ -256,6 +256,11 @@ wrapper arithmetizations.
 
 \subsection{Vulnerability: deferred-quotient vacuity in \(R\)}
 
+By Proposition~\ref{prop:outer-field-generic-vacuity}, the deferred-quotient
+vacuity mechanism is outer-field generic whenever \(p\) is invertible; this
+subsection specializes the notation to \(R=\F_r\) only to match the audited
+BN254 wrapper instance analyzed in this note.
+
 The deferred-quotient layer aims to represent rowwise Euclidean division by
 \(p\) by enforcing field equalities of the form
 \[
@@ -459,6 +464,9 @@ deferred-quotient BN254 wrappers: our novelty is not a new foreign-field gadget
 per se, but the diagnosis and repair of a specific algebraic vacuity (the
 \(p^{-1}\) attack) via an explicit canonical-lift binding and public audit/wiring
 certificates.
+In particular, this is a prophylactic design-pattern correction for a restricted
+arithmetization family, not a concrete vulnerability disclosure for a specific
+deployed production implementation.
 
 \subsection{Column classes}
 
@@ -1037,6 +1045,9 @@ checked deterministically by the released checker; and the remaining
 family-by-family template/realization coherence step is closed in the manuscript
 by Appendix~\ref{app:familywise-coherence}. No backend-independent cryptographic
 closure theorem is claimed here.
+Concretely, this coherence closure is manuscript-level relative to the current
+synthesized catalogue, and the released checker does not mechanize end-to-end
+semantic equality between local realization expressions and audited templates.
 
 \subsection{Extension to a concrete Halo2-style backend (discussion)}
 
@@ -1431,21 +1442,18 @@ arithmetic-object count in this bookkeeping model is still given by
 Table~\ref{tab:canon-overhead-bench} and a cell-level qualitative comparison in
 Table~\ref{tab:binding-vs-bitdecomp}.
 
-At claim level, the note proves a certificate-assisted rowwise exactness theorem for this
-restricted model. The released checker machine-verifies
-bounds/wiring/metadata/digest integrity, while full symbolic
-template/realization coherence remains a published manuscript-level proof
-obligation. Accordingly, this note does not by itself establish a
-backend-independent wrapper soundness theorem; wrapper-level cryptographic
-closure remains the separate backend-dependent task described in
-Remark~\ref{rem:wrapper-extension}.
+At claim level, the note proves a certificate-assisted rowwise exactness theorem
+for this restricted model. The mechanized/non-mechanized split is exactly the
+one stated in Section~\ref{subsec:deliverable-status}: familywise symbolic
+template/realization coherence remains manuscript-level, and backend-level
+cryptographic closure remains outside the scope of this note
+(Remark~\ref{rem:wrapper-extension}).
 
 \paragraph{Final deliverable statement.}
 The deliverable of this note is therefore a restricted-model,
 certificate-assisted rowwise exactness theorem with partial mechanization of
-bounds, coverage, metadata, and digest binding. It is not a backend-independent
-wrapper soundness theorem, and its remaining familywise coherence step is proved
-in the manuscript rather than mechanically checked in the current release.
+bounds, coverage, metadata, and digest binding (see
+Section~\ref{subsec:deliverable-status}).
 
 \appendix
 
@@ -1467,7 +1475,7 @@ class \(B_f\in\{2^{31},2^{66}\}\).
 \hline
 Row family \(f\) & Integer form for \(L_f\) & Certified bound \(U_f^{\mathrm{audit}}\) & Class \(B_f\) \\
 \hline
-inverse & \(L=q\cdot d\) & \((2^{66}-1)(p-1)\) & \(2^{66}\) \\
+inverse & \(L=y\cdot d\) & \((2^{66}-1)(p-1)\) & \(2^{66}\) \\
 \hline
 \(E\times F\) coordinate & \(L=\wt{x}_k\,\wt{a}\) & \((p-1)^2\) & \(2^{31}\) \\
 \hline
@@ -2176,7 +2184,7 @@ its semantic origin, and its assigned range class.
 \hline
 Family & Semantic origin & Class & Reason / bound target \\
 \hline
-\(Q_{\mathrm{inv}}\) & inverse rows \(L=q\cdot d\) & \(\mathcal Q_{66}\) & product can reach \(\Theta(p\cdot 2^{66})\) \\
+\(Q_{\mathrm{inv}}\) & inverse rows \(L=y\cdot d\) & \(\mathcal Q_{66}\) & product can reach \(\Theta(p\cdot 2^{66})\) \\
 \hline
 \(Q_{\mathrm{EF},k}\) (\(k=0,\dots,3\)) & \(E\times F\) coordinate rows & \(\mathcal Q_{31}\) & \(L< p^2 < p\cdot 2^{31}+p\) \\
 \hline

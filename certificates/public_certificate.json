@@ -1,9 +1,9 @@
 {
   "metadata": {
     "schema_version": "1.0.0",
-    "note_title": "A Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers",
+    "note_title": "A Restricted-Model, Certificate-Assisted Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers",
     "manuscript_file": "wrapper_note_option2.tex",
-    "manuscript_sha256": "27b34c8f25ecd349a62df4a111f7e754564b1c22f6d78a43192bc40aa1b1e3a3",
+    "manuscript_sha256": "8c4f972abb68146a3c6c5437badb479fe803c9a504eaadcd1a07cdcf8d8ba894",
     "generated_on": "2026-03-02"
   },
   "payload": {
@@ -1126,6 +1126,6 @@
   },
   "digest_binding": {
     "payload_sha256": "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
-    "manuscript_sha256": "27b34c8f25ecd349a62df4a111f7e754564b1c22f6d78a43192bc40aa1b1e3a3"
+    "manuscript_sha256": "8c4f972abb68146a3c6c5437badb479fe803c9a504eaadcd1a07cdcf8d8ba894"
   }
 }
