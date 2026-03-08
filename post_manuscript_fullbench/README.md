@@ -20,7 +20,7 @@ These are the current tracked scripts intended for audit and re-execution:
 - `scripts/local_fixedk_fullbench.py`
   - fixed-`k` local sweep + occupancy-bucket report generator
 - `scripts/run_external_compare.py`
-  - external `halo2wrong` comparison runner
+  - external `halo2wrong` comparison runner (on-demand only; not a tracked public evidence bundle)
 - `scripts/local_sweep.py`
   - lower-level sweep helper used by the fixed-`k` report
 
@@ -77,8 +77,6 @@ These are follow-up benchmark artifacts for the shared-input, fixed-`k` parity-p
 - Reports / outputs:
   - `docs/repeat_local_k13_public.md`
   - `benches/repeat_local_k13_public/`
-  - `docs/external_h2w_compare.md`
-  - `benches/external_h2w_compare/`
 
 ## Reproduction
 
@@ -107,6 +105,8 @@ External comparison:
 ```bash
 python scripts/run_external_compare.py --k-run 17 --scales 8,16 --out-dir benches/external_h2w_compare --report docs/external_h2w_compare.md --require-cert
 ```
+
+This script remains available for supplementary use, but its outputs are not tracked as part of the current public evidence bundle.
 
 Notes:
 - These results were produced after the manuscript draft and should be read as follow-up implementation evidence, not as part of the theorem claim in the paper.
