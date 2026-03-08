@@ -1,4 +1,4 @@
-﻿# B1-Lite Benchmark Harness + Companion Artifact Package
+# B1-Lite Benchmark Harness + Companion Artifact Package
 
 This repository contains:
 - a reproducible Halo2 circuit-shape comparison harness used in the note, and
@@ -9,9 +9,15 @@ For the exact public artifact tree cited by the manuscript, use the pinned
 commit:
 `2b1b28f7216bd85c75108caefc45dd1e437be061`.
 
-Follow-up full local benchmark materials produced after the manuscript draft
-are available under:
+Follow-up post-manuscript benchmark materials are available under:
 `post_manuscript_fullbench/`
+
+For reviewer-facing script audit of the post-manuscript benchmark package,
+start here:
+- `post_manuscript_fullbench/scripts/run_ab_bench.py`
+- `post_manuscript_fullbench/scripts/local_repeat_bench.py`
+- `post_manuscript_fullbench/scripts/local_fixedk_fullbench.py`
+- `post_manuscript_fullbench/scripts/run_external_compare.py`
 
 For the public headline timing comparison inside that package, prefer:
 `post_manuscript_fullbench/docs/repeat_local_k13_public.md`
@@ -31,7 +37,7 @@ For the public headline timing comparison inside that package, prefer:
   - `src/main.rs`
   - `results.md`
   - `Cargo.toml`, `Cargo.lock`
-- Post-manuscript full benchmark package:
+- Post-manuscript benchmark package:
   - `post_manuscript_fullbench/`
 - Companion artifact package:
   - `wrapper_note_option2.tex`
@@ -57,7 +63,15 @@ python scripts/check_public_certificate.py \
   --backend-instance certificates/h2dq_backend_instance.json
 ```
 
+3) Post-manuscript local repeat benchmark headline table:
+
+```bash
+cd post_manuscript_fullbench
+python scripts/local_repeat_bench.py --scales 16,24,32 --k-run 13 --repeats 2 --out-dir benches/repeat_local_k13_public --out-md docs/repeat_local_k13_public.md
+```
+
 ## Notes
 
 - `B1-lite` excludes modular reduction and CRT-consistency checks.
 - Therefore this baseline is a conservative partial baseline for the implemented schoolbook-limb wrong-field family.
+- In the post-manuscript package, exploratory fixed-k timing outputs were removed from the tracked public tree; the latest tracked scripts are the ones listed above.

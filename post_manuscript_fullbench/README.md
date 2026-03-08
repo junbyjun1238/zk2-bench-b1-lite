@@ -1,20 +1,40 @@
 # Post-manuscript full-benchmark package
 
-This directory contains the follow-up full local benchmark package used after the manuscript draft.
+This directory contains the follow-up benchmark package produced after the manuscript draft.
 
 Scope:
 - `A_secure` vs `B_note` under the shared benchmark contract
 - fixed-`k` local full benchmarks
+- repeat-based public timing collection
 - external comparison against the `halo2wrong` decomposition baseline
 - benchmark reports and raw JSON outputs
 
-Canonical public headline evidence in this package:
+## Reviewer-facing scripts
+
+These are the current tracked scripts intended for audit and re-execution:
+
+- `scripts/run_ab_bench.py`
+  - single arm / single scale runner producing one JSON output
+- `scripts/local_repeat_bench.py`
+  - repeat-based headline timing collector (`A_secure` vs `B_note`)
+- `scripts/local_fixedk_fullbench.py`
+  - fixed-`k` local sweep + occupancy-bucket report generator
+- `scripts/run_external_compare.py`
+  - external `halo2wrong` comparison runner
+- `scripts/local_sweep.py`
+  - lower-level sweep helper used by the fixed-`k` report
+
+The script set above matches the latest workspace versions used for the current benchmark package.
+Exploratory fixed-`k` output snapshots from earlier iterations were removed from the tracked public tree.
+
+## Canonical public headline evidence
+
+Prefer these files for the defended public timing claim:
+
 - `docs/repeat_local_k13_public.md`
 - `benches/repeat_local_k13_public/summary.json`
 
-These files are the preferred public source for the headline timing ratio claim.
-Older timing reports in this package should be treated as exploratory snapshots,
-not as the canonical public headline table.
+Older timing reports are not part of the tracked public tree for this package.
 
 ## Contents
 
@@ -23,10 +43,12 @@ not as the canonical public headline table.
   - `src/`
 - Python orchestration scripts:
   - `scripts/run_ab_bench.py`
-  - `scripts/local_sweep.py`
+  - `scripts/local_repeat_bench.py`
   - `scripts/local_fixedk_fullbench.py`
+  - `scripts/local_sweep.py`
   - `scripts/run_external_compare.py`
   - `scripts/scale_search.py`
+  - `scripts/plot_fullbench.py`
 - Benchmark inputs / checks:
   - `certificates/public_certificate.json`
   - `certificates/h2dq_backend_instance.json`
@@ -35,17 +57,21 @@ not as the canonical public headline table.
 - Reports / outputs:
   - `docs/repeat_local_k13_public.md`
   - `benches/repeat_local_k13_public/`
-  - `docs/fullbench_local_fixedk*.md`
   - `docs/external_h2w_compare.md`
-  - `benches/fullbench_local_fixedk*`
-  - `benches/external_h2w_compare`
+  - `benches/external_h2w_compare/`
 
 ## Reproduction
 
-Fixed-k local full bench:
+Headline repeat benchmark:
 
 ```bash
-python scripts/local_fixedk_fullbench.py --k-run 13 --scales 16,24,32 --out-dir benches/fullbench_local_fixedk_real_mid --out-md docs/fullbench_local_fixedk_real_mid.md
+python scripts/local_repeat_bench.py --scales 16,24,32 --k-run 13 --repeats 2 --out-dir benches/repeat_local_k13_public --out-md docs/repeat_local_k13_public.md
+```
+
+Fixed-k local sweep report:
+
+```bash
+python scripts/local_fixedk_fullbench.py --k-run 13 --scales 16,24,32 --out-dir benches/fullbench_local_fixedk_current --out-md docs/fullbench_local_fixedk_current.md
 ```
 
 External comparison:
