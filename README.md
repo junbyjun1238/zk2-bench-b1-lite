@@ -7,7 +7,11 @@ This repository contains:
 
 For the exact public artifact tree cited by the manuscript, use the pinned
 commit:
-`ea252826348749724523e4ec27c3686540de21b6`.
+`2b1b28f7216bd85c75108caefc45dd1e437be061`.
+
+Follow-up full local benchmark materials produced after the manuscript draft
+are available under:
+`post_manuscript_fullbench/`
 
 ## Scope
 
@@ -24,6 +28,8 @@ commit:
   - `src/main.rs`
   - `results.md`
   - `Cargo.toml`, `Cargo.lock`
+- Post-manuscript full benchmark package:
+  - `post_manuscript_fullbench/`
 - Companion artifact package:
   - `wrapper_note_option2.tex`
   - `certificates/public_certificate.json`

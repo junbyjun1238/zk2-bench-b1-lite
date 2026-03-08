@@ -1,0 +1,1131 @@
+{
+  "metadata": {
+    "schema_version": "1.0.0",
+    "note_title": "A Restricted-Model, Certificate-Assisted Rowwise Exactness Repair for Deferred-Quotient Constraints in BN254 Wrappers",
+    "manuscript_file": "wrapper_note_option2.tex",
+    "manuscript_sha256": "7c6cf57d36d9b1918fad224c5209abbe7be923d188969dbd515c84ececc88318",
+    "generated_on": "2026-03-02"
+  },
+  "payload": {
+    "constants": {
+      "p": "2147483647",
+      "r": "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+    },
+    "families": [
+      {
+        "id": "inv",
+        "class_bits": 66,
+        "u_left_dec": "158456324880954722595264004098",
+        "u_right_dec": "2147483646",
+        "selector_tags": [
+          "sel_inv"
+        ],
+        "template_ids": [
+          "inv_mul"
+        ]
+      },
+      {
+        "id": "EF",
+        "class_bits": 31,
+        "u_left_dec": "4611686009837453316",
+        "u_right_dec": "2147483646",
+        "selector_tags": [
+          "sel_ef"
+        ],
+        "template_ids": [
+          "ef_coord"
+        ]
+      },
+      {
+        "id": "EE",
+        "class_bits": 66,
+        "u_left_dec": "158456324585806817830375522176",
+        "u_right_dec": "2147483646",
+        "selector_tags": [
+          "sel_ee"
+        ],
+        "template_ids": [
+          "ee_coord"
+        ]
+      },
+      {
+        "id": "hor",
+        "class_bits": 66,
+        "u_left_dec": "158456324585806817830375522176",
+        "u_right_dec": "158456324585806817830375522176",
+        "selector_tags": [
+          "sel_hor"
+        ],
+        "template_ids": [
+          "hor_promoted"
+        ]
+      },
+      {
+        "id": "car",
+        "class_bits": 31,
+        "u_left_dec": "4294967299",
+        "u_right_dec": "4294967299",
+        "selector_tags": [
+          "sel_car"
+        ],
+        "template_ids": [
+          "car_norm"
+        ]
+      }
+    ],
+    "template_library": [
+      {
+        "family_id": "inv",
+        "template_id": "inv_mul",
+        "selector_tag": "sel_inv",
+        "class_bits": 66,
+        "intervals": {
+          "q": "73786976294838206463",
+          "d": "2147483646"
+        },
+        "left": {
+          "linear": [],
+          "quadratic": [
+            {
+              "coeff": "1",
+              "u": "q",
+              "v": "d"
+            }
+          ]
+        },
+        "right": {
+          "linear": [
+            {
+              "coeff": "1",
+              "var": "d"
+            }
+          ],
+          "quadratic": []
+        }
+      },
+      {
+        "family_id": "EF",
+        "template_id": "ef_coord",
+        "selector_tag": "sel_ef",
+        "class_bits": 31,
+        "intervals": {
+          "x": "2147483646",
+          "a": "2147483646",
+          "c": "2147483646"
+        },
+        "left": {
+          "linear": [],
+          "quadratic": [
+            {
+              "coeff": "1",
+              "u": "x",
+              "v": "a"
+            }
+          ]
+        },
+        "right": {
+          "linear": [
+            {
+              "coeff": "1",
+              "var": "c"
+            }
+          ],
+          "quadratic": []
+        }
+      },
+      {
+        "family_id": "EE",
+        "template_id": "ee_coord",
+        "selector_tag": "sel_ee",
+        "class_bits": 66,
+        "intervals": {
+          "x": "2147483646",
+          "y": "2147483646",
+          "c": "2147483646"
+        },
+        "left": {
+          "linear": [],
+          "quadratic": [
+            {
+              "coeff": "34359738336",
+              "u": "x",
+              "v": "y"
+            }
+          ]
+        },
+        "right": {
+          "linear": [
+            {
+              "coeff": "1",
+              "var": "c"
+            }
+          ],
+          "quadratic": []
+        }
+      },
+      {
+        "family_id": "hor",
+        "template_id": "hor_promoted",
+        "selector_tag": "sel_hor",
+        "class_bits": 66,
+        "intervals": {
+          "hx": "2147483646",
+          "hy": "2147483646"
+        },
+        "left": {
+          "linear": [],
+          "quadratic": [
+            {
+              "coeff": "34359738336",
+              "u": "hx",
+              "v": "hy"
+            }
+          ]
+        },
+        "right": {
+          "linear": [],
+          "quadratic": [
+            {
+              "coeff": "34359738336",
+              "u": "hx",
+              "v": "hy"
+            }
+          ]
+        }
+      },
+      {
+        "family_id": "car",
+        "template_id": "car_norm",
+        "selector_tag": "sel_car",
+        "class_bits": 31,
+        "intervals": {
+          "u31": "2147483647",
+          "v31": "2147483647",
+          "one": "1",
+          "four": "4"
+        },
+        "left": {
+          "linear": [
+            {
+              "coeff": "1",
+              "var": "u31"
+            },
+            {
+              "coeff": "1",
+              "var": "v31"
+            },
+            {
+              "coeff": "1",
+              "var": "one"
+            },
+            {
+              "coeff": "1",
+              "var": "four"
+            }
+          ],
+          "quadratic": []
+        },
+        "right": {
+          "linear": [
+            {
+              "coeff": "1",
+              "var": "u31"
+            },
+            {
+              "coeff": "1",
+              "var": "v31"
+            },
+            {
+              "coeff": "1",
+              "var": "one"
+            },
+            {
+              "coeff": "1",
+              "var": "four"
+            }
+          ],
+          "quadratic": []
+        }
+      }
+    ],
+    "coverage": {
+      "q_groups": {
+        "inv": [
+          "q_inv^0",
+          "q_inv^1",
+          "q_inv^2",
+          "q_inv^3"
+        ],
+        "ef": [
+          "q_ef^0",
+          "q_ef^1",
+          "q_ef^2",
+          "q_ef^3"
+        ],
+        "ee": [
+          "q_ee^0",
+          "q_ee^1",
+          "q_ee^2",
+          "q_ee^3"
+        ],
+        "hor": [
+          "q3^0",
+          "q3^1",
+          "q3^2",
+          "q3^3",
+          "q2^0",
+          "q2^1",
+          "q2^2",
+          "q2^3",
+          "q1^0",
+          "q1^1",
+          "q1^2",
+          "q1^3"
+        ],
+        "car": [
+          "q_car^0",
+          "q_car^1",
+          "q_car^2",
+          "q_car^3"
+        ]
+      },
+      "q31": [
+        "q_ef^0",
+        "q_ef^1",
+        "q_ef^2",
+        "q_ef^3",
+        "q_car^0",
+        "q_car^1",
+        "q_car^2",
+        "q_car^3"
+      ],
+      "q66": [
+        "q_inv^0",
+        "q_inv^1",
+        "q_inv^2",
+        "q_inv^3",
+        "q_ee^0",
+        "q_ee^1",
+        "q_ee^2",
+        "q_ee^3",
+        "q3^0",
+        "q3^1",
+        "q3^2",
+        "q3^3",
+        "q2^0",
+        "q2^1",
+        "q2^2",
+        "q2^3",
+        "q1^0",
+        "q1^1",
+        "q1^2",
+        "q1^3"
+      ],
+      "q_all": [
+        "q_inv^0",
+        "q_inv^1",
+        "q_inv^2",
+        "q_inv^3",
+        "q_ef^0",
+        "q_ef^1",
+        "q_ef^2",
+        "q_ef^3",
+        "q_ee^0",
+        "q_ee^1",
+        "q_ee^2",
+        "q_ee^3",
+        "q3^0",
+        "q3^1",
+        "q3^2",
+        "q3^3",
+        "q2^0",
+        "q2^1",
+        "q2^2",
+        "q2^3",
+        "q1^0",
+        "q1^1",
+        "q1^2",
+        "q1^3",
+        "q_car^0",
+        "q_car^1",
+        "q_car^2",
+        "q_car^3"
+      ],
+      "nonquotient": {
+        "p": [
+          "d",
+          "x",
+          "a",
+          "c",
+          "y",
+          "hx",
+          "hy",
+          "rc"
+        ],
+        "bit": [
+          "c2",
+          "c1",
+          "v"
+        ],
+        "u8": [
+          "u"
+        ]
+      }
+    },
+    "wiring": {
+      "quotient_slot_tags": [
+        {
+          "selector": "sel_inv",
+          "slot": "q0",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q1",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q2",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q3",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q0",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q1",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q2",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q3",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q0",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q1",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q2",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q3",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_0",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_1",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_2",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_3",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_0",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_1",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_2",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_3",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_0",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_1",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_2",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_3",
+          "class_bits": 66
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q0",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q1",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q2",
+          "class_bits": 31
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q3",
+          "class_bits": 31
+        }
+      ],
+      "quotient_wiring": [
+        {
+          "selector": "sel_inv",
+          "slot": "q0",
+          "column": "q_inv^0"
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q1",
+          "column": "q_inv^1"
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q2",
+          "column": "q_inv^2"
+        },
+        {
+          "selector": "sel_inv",
+          "slot": "q3",
+          "column": "q_inv^3"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q0",
+          "column": "q_ef^0"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q1",
+          "column": "q_ef^1"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q2",
+          "column": "q_ef^2"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "q3",
+          "column": "q_ef^3"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q0",
+          "column": "q_ee^0"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q1",
+          "column": "q_ee^1"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q2",
+          "column": "q_ee^2"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "q3",
+          "column": "q_ee^3"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_0",
+          "column": "q3^0"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_1",
+          "column": "q3^1"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_2",
+          "column": "q3^2"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q3_3",
+          "column": "q3^3"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_0",
+          "column": "q2^0"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_1",
+          "column": "q2^1"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_2",
+          "column": "q2^2"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q2_3",
+          "column": "q2^3"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_0",
+          "column": "q1^0"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_1",
+          "column": "q1^1"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_2",
+          "column": "q1^2"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "q1_3",
+          "column": "q1^3"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q0",
+          "column": "q_car^0"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q1",
+          "column": "q_car^1"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q2",
+          "column": "q_car^2"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "q3",
+          "column": "q_car^3"
+        }
+      ],
+      "nonquotient_slot_tags": [
+        {
+          "selector": "sel_inv",
+          "slot": "d",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "x",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "a",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "c",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "x",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "y",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "c",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "hx",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "hy",
+          "tag": "p"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "c2",
+          "tag": "bit"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "c1",
+          "tag": "bit"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "v",
+          "tag": "bit"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "u",
+          "tag": "u8"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "rc",
+          "tag": "p"
+        }
+      ],
+      "nonquotient_wiring": [
+        {
+          "selector": "sel_inv",
+          "slot": "d",
+          "column": "d"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "x",
+          "column": "x"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "a",
+          "column": "a"
+        },
+        {
+          "selector": "sel_ef",
+          "slot": "c",
+          "column": "c"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "x",
+          "column": "x"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "y",
+          "column": "y"
+        },
+        {
+          "selector": "sel_ee",
+          "slot": "c",
+          "column": "c"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "hx",
+          "column": "hx"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "hy",
+          "column": "hy"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "c2",
+          "column": "c2"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "c1",
+          "column": "c1"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "v",
+          "column": "v"
+        },
+        {
+          "selector": "sel_hor",
+          "slot": "u",
+          "column": "u"
+        },
+        {
+          "selector": "sel_car",
+          "slot": "rc",
+          "column": "rc"
+        }
+      ]
+    },
+    "relation_realization": [
+      {
+        "relation_id": "t_inv_0",
+        "selector": "sel_inv",
+        "relation_slot": "q0",
+        "template_family": "inv",
+        "template_id": "inv_mul"
+      },
+      {
+        "relation_id": "t_inv_1",
+        "selector": "sel_inv",
+        "relation_slot": "q1",
+        "template_family": "inv",
+        "template_id": "inv_mul"
+      },
+      {
+        "relation_id": "t_inv_2",
+        "selector": "sel_inv",
+        "relation_slot": "q2",
+        "template_family": "inv",
+        "template_id": "inv_mul"
+      },
+      {
+        "relation_id": "t_inv_3",
+        "selector": "sel_inv",
+        "relation_slot": "q3",
+        "template_family": "inv",
+        "template_id": "inv_mul"
+      },
+      {
+        "relation_id": "t_ef_0",
+        "selector": "sel_ef",
+        "relation_slot": "q0",
+        "template_family": "EF",
+        "template_id": "ef_coord"
+      },
+      {
+        "relation_id": "t_ef_1",
+        "selector": "sel_ef",
+        "relation_slot": "q1",
+        "template_family": "EF",
+        "template_id": "ef_coord"
+      },
+      {
+        "relation_id": "t_ef_2",
+        "selector": "sel_ef",
+        "relation_slot": "q2",
+        "template_family": "EF",
+        "template_id": "ef_coord"
+      },
+      {
+        "relation_id": "t_ef_3",
+        "selector": "sel_ef",
+        "relation_slot": "q3",
+        "template_family": "EF",
+        "template_id": "ef_coord"
+      },
+      {
+        "relation_id": "t_ee_0",
+        "selector": "sel_ee",
+        "relation_slot": "q0",
+        "template_family": "EE",
+        "template_id": "ee_coord"
+      },
+      {
+        "relation_id": "t_ee_1",
+        "selector": "sel_ee",
+        "relation_slot": "q1",
+        "template_family": "EE",
+        "template_id": "ee_coord"
+      },
+      {
+        "relation_id": "t_ee_2",
+        "selector": "sel_ee",
+        "relation_slot": "q2",
+        "template_family": "EE",
+        "template_id": "ee_coord"
+      },
+      {
+        "relation_id": "t_ee_3",
+        "selector": "sel_ee",
+        "relation_slot": "q3",
+        "template_family": "EE",
+        "template_id": "ee_coord"
+      },
+      {
+        "relation_id": "t_hor_q3_0",
+        "selector": "sel_hor",
+        "relation_slot": "q3_0",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q3_1",
+        "selector": "sel_hor",
+        "relation_slot": "q3_1",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q3_2",
+        "selector": "sel_hor",
+        "relation_slot": "q3_2",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q3_3",
+        "selector": "sel_hor",
+        "relation_slot": "q3_3",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q2_0",
+        "selector": "sel_hor",
+        "relation_slot": "q2_0",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q2_1",
+        "selector": "sel_hor",
+        "relation_slot": "q2_1",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q2_2",
+        "selector": "sel_hor",
+        "relation_slot": "q2_2",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q2_3",
+        "selector": "sel_hor",
+        "relation_slot": "q2_3",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q1_0",
+        "selector": "sel_hor",
+        "relation_slot": "q1_0",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q1_1",
+        "selector": "sel_hor",
+        "relation_slot": "q1_1",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q1_2",
+        "selector": "sel_hor",
+        "relation_slot": "q1_2",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_hor_q1_3",
+        "selector": "sel_hor",
+        "relation_slot": "q1_3",
+        "template_family": "hor",
+        "template_id": "hor_promoted"
+      },
+      {
+        "relation_id": "t_car_0",
+        "selector": "sel_car",
+        "relation_slot": "q0",
+        "template_family": "car",
+        "template_id": "car_norm"
+      },
+      {
+        "relation_id": "t_car_1",
+        "selector": "sel_car",
+        "relation_slot": "q1",
+        "template_family": "car",
+        "template_id": "car_norm"
+      },
+      {
+        "relation_id": "t_car_2",
+        "selector": "sel_car",
+        "relation_slot": "q2",
+        "template_family": "car",
+        "template_id": "car_norm"
+      },
+      {
+        "relation_id": "t_car_3",
+        "selector": "sel_car",
+        "relation_slot": "q3",
+        "template_family": "car",
+        "template_id": "car_norm"
+      }
+    ],
+    "row_activity": {
+      "omega_rows": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "active_pairs": [
+        {
+          "relation_id": "t_inv_0",
+          "row": 0
+        },
+        {
+          "relation_id": "t_inv_1",
+          "row": 0
+        },
+        {
+          "relation_id": "t_inv_2",
+          "row": 0
+        },
+        {
+          "relation_id": "t_inv_3",
+          "row": 0
+        },
+        {
+          "relation_id": "t_ef_0",
+          "row": 1
+        },
+        {
+          "relation_id": "t_ef_1",
+          "row": 1
+        },
+        {
+          "relation_id": "t_ef_2",
+          "row": 1
+        },
+        {
+          "relation_id": "t_ef_3",
+          "row": 1
+        },
+        {
+          "relation_id": "t_ee_0",
+          "row": 2
+        },
+        {
+          "relation_id": "t_ee_1",
+          "row": 2
+        },
+        {
+          "relation_id": "t_ee_2",
+          "row": 2
+        },
+        {
+          "relation_id": "t_ee_3",
+          "row": 2
+        },
+        {
+          "relation_id": "t_hor_q3_0",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q3_1",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q3_2",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q3_3",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q2_0",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q2_1",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q2_2",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q2_3",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q1_0",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q1_1",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q1_2",
+          "row": 3
+        },
+        {
+          "relation_id": "t_hor_q1_3",
+          "row": 3
+        },
+        {
+          "relation_id": "t_car_0",
+          "row": 0
+        },
+        {
+          "relation_id": "t_car_1",
+          "row": 0
+        },
+        {
+          "relation_id": "t_car_2",
+          "row": 0
+        },
+        {
+          "relation_id": "t_car_3",
+          "row": 0
+        }
+      ],
+      "inactive_zero_extension": true
+    }
+  },
+  "digest_binding": {
+    "payload_sha256": "33d0b5b51433f0d12eeeac142f187f206faba95169c457bf46141f464c0ad605",
+    "manuscript_sha256": "7c6cf57d36d9b1918fad224c5209abbe7be923d188969dbd515c84ececc88318"
+  }
+}

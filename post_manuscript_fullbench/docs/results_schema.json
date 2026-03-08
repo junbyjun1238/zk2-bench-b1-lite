@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Halo2 A/B Benchmark Result",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "arm": {
+      "type": "string",
+      "enum": [
+        "U",
+        "A_secure",
+        "B_note"
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "fast-structural",
+        "full-local",
+        "full-cloud"
+      ]
+    },
+    "family": {
+      "type": "string"
+    },
+    "package_type": {
+      "type": "string"
+    },
+    "workload_scale": {
+      "type": "integer"
+    },
+    "n": {
+      "type": "integer"
+    },
+    "R_hor": {
+      "type": "integer"
+    },
+    "R_car": {
+      "type": "integer"
+    },
+    "k_min": {
+      "type": "integer"
+    },
+    "k_run": {
+      "type": "integer"
+    },
+    "logical_lookup_cells": {
+      "type": "integer"
+    },
+    "logical_mul_constraints": {
+      "type": "integer"
+    },
+    "logical_lin_constraints": {
+      "type": "integer"
+    },
+    "physical_rows": {
+      "type": "integer"
+    },
+    "advice_cols": {
+      "type": "integer"
+    },
+    "fixed_cols": {
+      "type": "integer"
+    },
+    "instance_cols": {
+      "type": "integer"
+    },
+    "synth_ms": {
+      "type": "number"
+    },
+    "keygen_vk_ms": {
+      "type": "number"
+    },
+    "keygen_pk_ms": {
+      "type": "number"
+    },
+    "prove_ms": {
+      "type": "number"
+    },
+    "verify_ms": {
+      "type": "number"
+    },
+    "peak_rss_mb": {
+      "type": "number"
+    },
+    "proof_bytes": {
+      "type": "integer"
+    },
+    "commit_hash": {
+      "type": "string"
+    },
+    "rust_version": {
+      "type": "string"
+    },
+    "backend_commit": {
+      "type": "string"
+    },
+    "machine_profile": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "arm",
+    "mode",
+    "family",
+    "package_type",
+    "workload_scale",
+    "n",
+    "R_hor",
+    "R_car",
+    "k_min",
+    "k_run",
+    "logical_lookup_cells",
+    "logical_mul_constraints",
+    "logical_lin_constraints",
+    "physical_rows",
+    "advice_cols",
+    "fixed_cols",
+    "instance_cols",
+    "synth_ms",
+    "keygen_vk_ms",
+    "keygen_pk_ms",
+    "prove_ms",
+    "verify_ms",
+    "peak_rss_mb",
+    "proof_bytes",
+    "commit_hash",
+    "rust_version",
+    "backend_commit",
+    "machine_profile",
+    "status",
+    "notes"
+  ]
+}

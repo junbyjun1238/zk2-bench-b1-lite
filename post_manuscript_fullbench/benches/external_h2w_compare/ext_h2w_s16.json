@@ -1,0 +1,23 @@
+{
+  "n": 16,
+  "R_hor": 16,
+  "R_car": 16,
+  "k_min": 17,
+  "k_run": 17,
+  "logical_lookup_cells": 0,
+  "logical_mul_constraints": 71232,
+  "logical_lin_constraints": 1792,
+  "physical_rows": 0,
+  "advice_cols": 5,
+  "fixed_cols": 9,
+  "instance_cols": 1,
+  "synth_ms": 0.0022,
+  "keygen_vk_ms": 15688.235,
+  "keygen_pk_ms": 6663.6416,
+  "prove_ms": 26147.4663,
+  "verify_ms": 19.769599999999997,
+  "proof_bytes": 1760,
+  "status": "full-local-ok",
+  "notes": "ext_halo2wrong full-local measured with row-family-equivalent maingate::MainGate::to_bits decomposition workload",
+  "peak_rss_mb": 464.34765625
+}

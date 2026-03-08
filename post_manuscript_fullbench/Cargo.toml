@@ -1,0 +1,15 @@
+[package]
+name = "zcg_ab_bench"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# PSE halo2_proofs fork (Zcash/Halo2 ecosystem compatibility path)
+halo2_proofs = { git = "https://github.com/privacy-scaling-explorations/halo2.git", tag = "v0.3.0" }
+# External de-facto standard gadget stack (PSE halo2wrong / maingate)
+maingate = { git = "https://github.com/privacy-scaling-explorations/halo2wrong.git", package = "maingate", rev = "3eaa2c4703a333e9695dc980bebf3445b7a9b141" }
+rand_core = "0.6"
+
+[dev-dependencies]
+# Benchmark/measurement tooling for later A/B runs
+criterion = "0.5"
