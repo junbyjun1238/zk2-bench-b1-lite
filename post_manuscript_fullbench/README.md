@@ -28,6 +28,7 @@ The script set above matches the latest workspace versions used for the current 
 Exploratory fixed-`k` output snapshots from earlier iterations were removed from the tracked public tree.
 Reviewer-facing timing runs now use release binaries, not debug binaries.
 The `full-cloud` mode is intentionally disabled; cloud machines should execute the same `full-local` path.
+Shared-input profiles are available via `--input-profile {standard,boundary,adversarial}`; `boundary` is the recommended first parity-facing profile.
 
 ## Canonical public headline evidence
 
@@ -68,6 +69,12 @@ Headline repeat benchmark:
 
 ```bash
 python scripts/local_repeat_bench.py --scales 16,24,32 --k-run 13 --repeats 2 --out-dir benches/repeat_local_k13_public --out-md docs/repeat_local_k13_public.md
+```
+
+Shared-input boundary smoke rerun:
+
+```bash
+python scripts/local_repeat_bench.py --scales 1 --k-run 17 --repeats 1 --input-profile boundary --out-dir benches/tmp_repeat_boundary --out-md docs/tmp_repeat_boundary.md
 ```
 
 Fixed-k local sweep report:

@@ -1,4 +1,4 @@
-use std::time::Instant;
+﻿use std::time::Instant;
 
 use halo2_proofs::dev::MockProver;
 use halo2_proofs::halo2curves::bn256::{Bn256, Fr};
@@ -11,12 +11,13 @@ use halo2_proofs::transcript::{
     Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWriterBuffer,
 };
 use rand_core::OsRng;
+use zcg_ab_bench::shared_inputs::InputProfile;
 use zcg_ab_bench::baseline_b::{
     BaselineBNoteCircuit, ADVICE_COLS, FIXED_COLS, INSTANCE_COLS, LIN_CONSTRAINTS_PER_REP,
     LOOKUP_CELLS_PER_REP, MUL_CONSTRAINTS_PER_REP, ROWS_PER_REP,
 };
 
-const MIN_K: u32 = 13;
+const MIN_K: u32 = 17;
 const MAX_K: u32 = 21;
 
 #[derive(Debug)]
@@ -25,6 +26,16 @@ struct Args {
     k_run_override: Option<u32>,
     known_k_min: Option<u32>,
     probe_k_min_only: bool,
+    input_profile: InputProfile,
+}
+
+fn parse_input_profile(value: &str) -> Result<InputProfile, String> {
+    match value {
+        "standard" => Ok(InputProfile::Standard),
+        "boundary" => Ok(InputProfile::Boundary),
+        "adversarial" => Ok(InputProfile::Adversarial),
+        _ => Err(format!("invalid --input-profile value: {value}")),
+    }
 }
 
 fn catch_unwind_silent<F, R>(f: F) -> Result<R, Box<dyn std::any::Any + Send>>
@@ -56,6 +67,7 @@ fn parse_args() -> Result<Args, String> {
     let mut k_run_override: Option<u32> = None;
     let mut known_k_min: Option<u32> = None;
     let mut probe_k_min_only = false;
+    let mut input_profile = InputProfile::Standard;
     while let Some(arg) = args.next() {
         if arg == "--scale" {
             let value = args
@@ -82,6 +94,11 @@ fn parse_args() -> Result<Args, String> {
             known_k_min = Some(parsed);
         } else if arg == "--probe-k-min" {
             probe_k_min_only = true;
+        } else if arg == "--input-profile" {
+            let value = args
+                .next()
+                .ok_or_else(|| "missing value for --input-profile".to_string())?;
+            input_profile = parse_input_profile(&value)?;
         } else {
             return Err(format!("unknown argument: {arg}"));
         }
@@ -94,6 +111,7 @@ fn parse_args() -> Result<Args, String> {
         k_run_override,
         known_k_min,
         probe_k_min_only,
+        input_profile,
     })
 }
 
@@ -107,7 +125,7 @@ fn main() {
 fn run() -> Result<(), String> {
     let args = parse_args()?;
     let scale = args.scale;
-    let circuit = BaselineBNoteCircuit::<Fr>::new(scale);
+    let circuit = BaselineBNoteCircuit::<Fr>::with_profile(scale, args.input_profile);
 
     if args.probe_k_min_only {
         let k_min = find_k_min(&circuit)?;
@@ -191,6 +209,11 @@ fn run() -> Result<(), String> {
     let fixed_cols = FIXED_COLS as u64;
     let instance_cols = INSTANCE_COLS as u64;
     let proof_bytes: u64 = proof.len() as u64;
+    let input_profile = match args.input_profile {
+        InputProfile::Standard => "standard",
+        InputProfile::Boundary => "boundary",
+        InputProfile::Adversarial => "adversarial",
+    };
 
     let payload = format!(
         "{{\"n\":{scale},\"R_hor\":{scale},\"R_car\":{scale},\"k_min\":{k_min},\"k_run\":{k_run},\
@@ -199,7 +222,7 @@ fn run() -> Result<(), String> {
 \"advice_cols\":{advice_cols},\"fixed_cols\":{fixed_cols},\"instance_cols\":{instance_cols},\
 \"synth_ms\":{synth_ms},\"keygen_vk_ms\":{keygen_vk_ms},\"keygen_pk_ms\":{keygen_pk_ms},\
 \"prove_ms\":{prove_ms},\"verify_ms\":{verify_ms},\"proof_bytes\":{proof_bytes},\
-\"status\":\"full-local-ok\",\"notes\":\"B_note full-local measured with real keygen/prove/verify (Blake2b transcript)\"}}"
+\"status\":\"full-local-ok\",\"notes\":\"B_note full-local measured with real keygen/prove/verify (Blake2b transcript); input_profile={input_profile}\"}}"
     );
     println!("{payload}");
     Ok(())

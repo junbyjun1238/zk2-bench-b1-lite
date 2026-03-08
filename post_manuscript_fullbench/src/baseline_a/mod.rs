@@ -4,6 +4,9 @@ use halo2_proofs::arithmetic::Field;
 use halo2_proofs::circuit::{Layouter, Region, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Expression, Selector};
 use halo2_proofs::poly::Rotation;
+use crate::shared_inputs::{
+    shared_row_witness, InputProfile, SharedFamily, P_U32,
+};
 
 pub const FAMILY_INV_ROWS: usize = 4;
 pub const FAMILY_EF_ROWS: usize = 4;
@@ -35,7 +38,6 @@ pub const ADVICE_COLS: usize = 8 + TOTAL_DECOMP_BITS; // x,y,z,q,nu_x,nu_y,nu_z,
 pub const FIXED_COLS: usize = 6; // 5 family selectors + inactive selector
 pub const INSTANCE_COLS: usize = 0;
 
-const P_U32: u32 = 2_147_483_647;
 const DIGEST_CONST_U64: u64 = 0xC0DE;
 const EE_HOR_COEFF_U64: u64 = 34_359_738_336; // 2^35
 
@@ -85,6 +87,7 @@ enum Family {
 pub struct BaselineASecureCircuit<F: Field> {
     pub repetitions: usize,
     pub fault: Option<ASecureFault>,
+    pub input_profile: InputProfile,
     marker: PhantomData<F>,
 }
 
@@ -94,6 +97,18 @@ impl<F: Field + From<u64>> BaselineASecureCircuit<F> {
     }
 
     pub fn with_fault(repetitions: usize, fault: Option<ASecureFault>) -> Self {
+        Self::with_fault_and_profile(repetitions, fault, InputProfile::Standard)
+    }
+
+    pub fn with_profile(repetitions: usize, input_profile: InputProfile) -> Self {
+        Self::with_fault_and_profile(repetitions, None, input_profile)
+    }
+
+    pub fn with_fault_and_profile(
+        repetitions: usize,
+        fault: Option<ASecureFault>,
+        input_profile: InputProfile,
+    ) -> Self {
         assert!(
             repetitions > 0,
             "repetitions must be positive for A_secure baseline"
@@ -101,6 +116,7 @@ impl<F: Field + From<u64>> BaselineASecureCircuit<F> {
         Self {
             repetitions,
             fault,
+            input_profile,
             marker: PhantomData,
         }
     }
@@ -127,14 +143,20 @@ impl<F: Field + From<u64>> BaselineASecureCircuit<F> {
         ]
     }
 
-    fn base_row_values(family: Family, local_idx: usize) -> (u32, u32, u32, u64, bool) {
+    fn shared_family(family: Family) -> SharedFamily {
         match family {
-            Family::Inv => (1, 0, 0, 1, false),
-            Family::Ef => (1, 1, 1, (1u64 << 30) + 1 + local_idx as u64, true),
-            Family::Ee => (0, 1, 0, (1u64 << 62) + 11 + local_idx as u64, false),
-            Family::Hor => (0, 1, 0, (1u64 << 61) + 101 + local_idx as u64, false),
-            Family::Car => (1, 1, 7, (1u64 << 30) + 1000 + local_idx as u64, true),
+            Family::Inv => SharedFamily::Inv,
+            Family::Ef => SharedFamily::Ef,
+            Family::Ee => SharedFamily::Ee,
+            Family::Hor => SharedFamily::Hor,
+            Family::Car => SharedFamily::Car,
         }
+    }
+
+    fn q_u128_to_field(v: u128) -> F {
+        let low = (v & ((1u128 << 64) - 1)) as u64;
+        let high = (v >> 64) as u64;
+        Self::small_const(low) + Self::small_const(high) * Self::fr_pow2(64)
     }
 
     fn assign_bits<const N: usize>(
@@ -170,6 +192,7 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineASecureCircuit<F> {
         Self {
             repetitions: self.repetitions,
             fault: self.fault,
+            input_profile: self.input_profile,
             marker: PhantomData,
         }
     }
@@ -392,13 +415,22 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineASecureCircuit<F> {
                                 Family::Car => config.sel_car.enable(&mut region, offset)?,
                             }
 
-                            let (x_u, y_u, z_u, mut q_u, is_q31_row) =
-                                Self::base_row_values(family, local);
+                            let row = shared_row_witness(
+                                rep,
+                                Self::shared_family(family),
+                                local,
+                                self.input_profile,
+                            );
+                            let x_u = row.x;
+                            let y_u = row.y;
+                            let z_u = row.z;
+                            let mut q_u = row.q;
+                            let is_q31_row = row.is_q31;
 
                             let x_f = Self::small_const(x_u as u64);
                             let y_f = Self::small_const(y_u as u64);
                             let z_f = Self::small_const(z_u as u64);
-                            let mut q_f = Self::small_const(q_u);
+                            let mut q_f = Self::q_u128_to_field(q_u);
                             let mut digest_f = Self::small_const(DIGEST_CONST_U64);
 
                             if rep == 0 {
@@ -416,8 +448,8 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineASecureCircuit<F> {
                                     Some(ASecureFault::ClassMapMismatch31_66)
                                         if family == Family::Ef && local == 0 =>
                                     {
-                                        q_u = (1u64 << 40) + 7;
-                                        q_f = Self::small_const(q_u);
+                                        q_u = (1u128 << 40) + 7;
+                                        q_f = Self::q_u128_to_field(q_u);
                                     }
                                     Some(ASecureFault::DigestMismatch)
                                         if family == Family::Inv && local == 0 =>
@@ -519,7 +551,7 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineASecureCircuit<F> {
 
                             if is_q31_row {
                                 debug_assert!(
-                                    q_u < (1u64 << 31)
+                                    q_u < (1u128 << 31)
                                         || self.fault == Some(ASecureFault::ClassMapMismatch31_66),
                                     "q31 row must fit 31 bits unless fault is injected"
                                 );
@@ -646,6 +678,7 @@ mod tests {
     use super::{ASecureFault, BaselineASecureCircuit};
     use halo2_proofs::dev::MockProver;
     use halo2_proofs::halo2curves::bn256::Fr;
+    use crate::shared_inputs::InputProfile;
 
     fn assert_rejected(circuit: BaselineASecureCircuit<Fr>) {
         let k = 10;
@@ -697,5 +730,19 @@ mod tests {
             Some(ASecureFault::InactiveRowZeroExtensionViolation),
         );
         assert_rejected(circuit);
+    }
+
+    #[test]
+    fn test_a_secure_boundary_profile_valid() {
+        let circuit = BaselineASecureCircuit::<Fr>::with_profile(1, InputProfile::Boundary);
+        let prover = MockProver::run(10, &circuit, vec![]).expect("mock prover should build");
+        prover.assert_satisfied();
+    }
+
+    #[test]
+    fn test_a_secure_adversarial_profile_valid() {
+        let circuit = BaselineASecureCircuit::<Fr>::with_profile(1, InputProfile::Adversarial);
+        let prover = MockProver::run(10, &circuit, vec![]).expect("mock prover should build");
+        prover.assert_satisfied();
     }
 }

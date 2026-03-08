@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import argparse
 import json
 from pathlib import Path
@@ -16,7 +16,7 @@ NUMERIC_KEYS = [
 ]
 
 
-def run_once(arm: str, scale: int, k_run: int, out_path: Path, require_cert: bool) -> dict:
+def run_once(arm: str, scale: int, k_run: int, out_path: Path, require_cert: bool, input_profile: str) -> dict:
     cmd = [
         "python",
         "scripts/run_ab_bench.py",
@@ -28,6 +28,8 @@ def run_once(arm: str, scale: int, k_run: int, out_path: Path, require_cert: boo
         str(scale),
         "--k-run",
         str(k_run),
+        "--input-profile",
+        input_profile,
         "--lint-output",
         "--out",
         str(out_path),
@@ -69,13 +71,14 @@ def format_pm(mu: float, sigma: float, digits: int = 2) -> str:
     return f"{mu:.{digits}f} +/- {sigma:.{digits}f}"
 
 
-def build_md(rows: List[dict], out_path: Path, repeats: int, k_run: int, order_policy: str) -> None:
+def build_md(rows: List[dict], out_path: Path, repeats: int, k_run: int, order_policy: str, input_profile: str) -> None:
     lines = [
         "# Local Repeat Bench (full-local, fixed-k)",
         "",
         f"- repeats per point: `{repeats}`",
         f"- k_run fixed: `{k_run}`",
         f"- order policy: `{order_policy}`",
+        f"- input profile: `{input_profile}`",
         "",
         "| scale | A prove (ms) | B prove (ms) | B/A prove | A verify (ms) | B verify (ms) | B/A verify | A keygen(vk+pk) ms | B keygen(vk+pk) ms | A proof bytes | B proof bytes |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -125,6 +128,7 @@ def main() -> None:
     parser.add_argument("--out-dir", default="benches/repeat_local")
     parser.add_argument("--out-md", default="docs/repeat_local_report.md")
     parser.add_argument("--order-policy", choices=["fixed-ab", "alternate"], default="alternate")
+    parser.add_argument("--input-profile", choices=["standard", "boundary", "adversarial"], default="standard")
     args = parser.parse_args()
 
     if args.repeats < 1:
@@ -151,9 +155,9 @@ def main() -> None:
                 arm_order = ["B_note", "A_secure"]
             for arm in arm_order:
                 if arm == "A_secure":
-                    a_samples.append(run_once("A_secure", scale, args.k_run, a_out, require_cert=False))
+                    a_samples.append(run_once("A_secure", scale, args.k_run, a_out, require_cert=False, input_profile=args.input_profile))
                 else:
-                    b_samples.append(run_once("B_note", scale, args.k_run, b_out, require_cert=True))
+                    b_samples.append(run_once("B_note", scale, args.k_run, b_out, require_cert=True, input_profile=args.input_profile))
 
         a_sum = summarize(a_samples)
         b_sum = summarize(b_samples)
@@ -175,6 +179,7 @@ def main() -> None:
         "k_run": args.k_run,
         "repeats": args.repeats,
         "order_policy": args.order_policy,
+        "input_profile": args.input_profile,
         "scales": scales,
         "rows": rows,
     }
@@ -183,7 +188,7 @@ def main() -> None:
 
     out_md = Path(args.out_md)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    build_md(rows, out_md, repeats=args.repeats, k_run=args.k_run, order_policy=args.order_policy)
+    build_md(rows, out_md, repeats=args.repeats, k_run=args.k_run, order_policy=args.order_policy, input_profile=args.input_profile)
 
     print(f"wrote repeat summary: {summary_path}")
     print(f"wrote repeat report: {out_md}")

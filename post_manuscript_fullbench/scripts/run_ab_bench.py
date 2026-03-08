@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import argparse
 import json
 import math
@@ -109,9 +109,9 @@ def _ensure_bin(bin_name: str):
     return path
 
 
-def _probe_k_min(bin_name: str, scale: int) -> int:
+def _probe_k_min(bin_name: str, scale: int, input_profile: str = "standard") -> int:
     bin_path = _ensure_bin(bin_name)
-    cmd = [str(bin_path), "--scale", str(scale), "--probe-k-min"]
+    cmd = [str(bin_path), "--scale", str(scale), "--probe-k-min", "--input-profile", input_profile]
     proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if proc.returncode != 0:
         stderr_tail = (proc.stderr or "").strip().splitlines()[-1] if (proc.stderr or "").strip() else "unknown error"
@@ -158,7 +158,8 @@ def build_b_note_fast_structural(scale: int) -> dict:
     lin_per_rep = 146
     rows_per_rep = 29
     physical_rows = rows_per_rep * scale
-    k_min = max(13, math.ceil(math.log2(max(physical_rows, 2))))
+    usable_row_floor = (1 << 16) + 6
+    k_min = max(17, math.ceil(math.log2(max(physical_rows, usable_row_floor, 2))))
     return {
         "n": scale,
         "R_hor": scale,
@@ -182,19 +183,22 @@ def build_b_note_fast_structural(scale: int) -> dict:
         "status": "structural-ok",
         "notes": (
             "B_note fast-structural counters from baseline_b template "
-            "(family rows + canonical/q-binding + digest + inactive-zero checks)"
+            "(family rows + canonical/q-binding + digest + inactive-zero checks); "
+            "note-faithful full-table normalization assumed for T16/T15"
         ),
     }
 
 
-def build_a_secure_full_local(scale: int, k_run: int | None = None) -> dict:
-    k_min = _probe_k_min("a_secure_full_local", scale)
+def build_a_secure_full_local(scale: int, k_run: int | None = None, input_profile: str = "standard") -> dict:
+    k_min = _probe_k_min("a_secure_full_local", scale, input_profile=input_profile)
     bin_path = _ensure_bin("a_secure_full_local")
     effective_k_run = k_run if k_run is not None else k_min
     cmd = [
         str(bin_path),
         "--scale",
         str(scale),
+        "--input-profile",
+        input_profile,
         "--known-k-min",
         str(k_min),
         "--k-run",
@@ -213,14 +217,16 @@ def build_a_secure_full_local(scale: int, k_run: int | None = None) -> dict:
     return payload
 
 
-def build_b_note_full_local(scale: int, k_run: int | None = None) -> dict:
-    k_min = _probe_k_min("b_note_full_local", scale)
+def build_b_note_full_local(scale: int, k_run: int | None = None, input_profile: str = "standard") -> dict:
+    k_min = _probe_k_min("b_note_full_local", scale, input_profile=input_profile)
     bin_path = _ensure_bin("b_note_full_local")
     effective_k_run = k_run if k_run is not None else k_min
     cmd = [
         str(bin_path),
         "--scale",
         str(scale),
+        "--input-profile",
+        input_profile,
         "--known-k-min",
         str(k_min),
         "--k-run",
@@ -254,6 +260,7 @@ def main():
     parser.add_argument("--out", default="benches/mock_result.json")
     parser.add_argument("--require-cert", action="store_true")
     parser.add_argument("--lint-output", action="store_true")
+    parser.add_argument("--input-profile", choices=["standard", "boundary", "adversarial"], default="standard")
     parser.add_argument("--cert-path", default="certificates/public_certificate.json")
     parser.add_argument("--manuscript", default=None)
     parser.add_argument("--backend-instance", default="certificates/h2dq_backend_instance.json")
@@ -287,11 +294,11 @@ def main():
     if args.arm == "A_secure" and args.mode == "fast-structural":
         payload = build_a_secure_fast_structural(args.scale)
     elif args.arm == "A_secure" and args.mode == "full-local":
-        payload = build_a_secure_full_local(args.scale, args.k_run)
+        payload = build_a_secure_full_local(args.scale, args.k_run, input_profile=args.input_profile)
     elif args.arm == "B_note" and args.mode == "fast-structural":
         payload = build_b_note_fast_structural(args.scale)
     elif args.arm == "B_note" and args.mode == "full-local":
-        payload = build_b_note_full_local(args.scale, args.k_run)
+        payload = build_b_note_full_local(args.scale, args.k_run, input_profile=args.input_profile)
     else:
         raise RuntimeError(f"unsupported arm/mode combination: arm={args.arm}, mode={args.mode}")
 

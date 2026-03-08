@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 import argparse
 import json
 import subprocess
@@ -14,6 +14,7 @@ def run_bench(
     require_cert: bool,
     lint: bool,
     k_run: int | None,
+    input_profile: str,
 ) -> None:
     cmd = [
         "python",
@@ -24,6 +25,8 @@ def run_bench(
         mode,
         "--scale",
         str(scale),
+        "--input-profile",
+        input_profile,
         "--out",
         str(out_file),
     ]
@@ -58,11 +61,12 @@ def ratio(num: float, den: float) -> float:
     return num / den
 
 
-def to_md_table(rows: List[Dict], out_md: Path, order_policy: str) -> None:
+def to_md_table(rows: List[Dict], out_md: Path, order_policy: str, input_profile: str) -> None:
     lines = [
         "# Local A/B Sweep (full-local)",
         "",
         f"- order policy: `{order_policy}`",
+        f"- input profile: `{input_profile}`",
         "",
         "| scale | A_prove_ms | B_prove_ms | B/A prove | A_verify_ms | B_verify_ms | B/A verify | A_peak_rss_mb | B_peak_rss_mb | B/A rss |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -108,6 +112,7 @@ def main() -> None:
     parser.add_argument("--require-cert", action="store_true")
     parser.add_argument("--k-run", type=int, default=None, help="Fixed k for full-local runs")
     parser.add_argument("--order-policy", choices=["fixed-ab", "alternate"], default="alternate")
+    parser.add_argument("--input-profile", choices=["standard", "boundary", "adversarial"], default="standard")
     args = parser.parse_args()
 
     scales = [int(x.strip()) for x in args.scales.split(",") if x.strip()]
@@ -137,6 +142,7 @@ def main() -> None:
                     require_cert=args.require_cert,
                     lint=args.lint_output,
                     k_run=args.k_run,
+                    input_profile=args.input_profile,
                 )
             else:
                 run_bench(
@@ -147,6 +153,7 @@ def main() -> None:
                     require_cert=args.require_cert,
                     lint=args.lint_output,
                     k_run=args.k_run,
+                    input_profile=args.input_profile,
                 )
 
         a = load_json(a_out)
@@ -180,6 +187,7 @@ def main() -> None:
     summary = {
         "mode": args.mode,
         "order_policy": args.order_policy,
+        "input_profile": args.input_profile,
         "scales": scales,
         "rows": summary_rows,
     }
@@ -188,7 +196,7 @@ def main() -> None:
 
     out_md = Path(args.out_md)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    to_md_table(summary_rows, out_md, order_policy=args.order_policy)
+    to_md_table(summary_rows, out_md, order_policy=args.order_policy, input_profile=args.input_profile)
 
     print(f"wrote local sweep summary: {summary_path}")
     print(f"wrote local sweep table: {out_md}")

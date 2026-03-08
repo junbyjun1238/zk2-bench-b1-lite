@@ -4,6 +4,9 @@ use halo2_proofs::arithmetic::Field;
 use halo2_proofs::circuit::{Layouter, SimpleFloorPlanner, Value};
 use halo2_proofs::plonk::{Advice, Circuit, Column, ConstraintSystem, Error, Expression, Selector, TableColumn};
 use halo2_proofs::poly::Rotation;
+use crate::shared_inputs::{
+    shared_row_witness, InputProfile, SharedFamily, P_U32,
+};
 
 pub const FAMILY_INV_ROWS: usize = 4;
 pub const FAMILY_EF_ROWS: usize = 4;
@@ -34,11 +37,10 @@ pub const ADVICE_COLS: usize = 19;
 pub const FIXED_COLS: usize = 9; // 6 selectors + 3 lookup tables
 pub const INSTANCE_COLS: usize = 0;
 
-const P_U32: u32 = 2_147_483_647;
 const DIGEST_CONST_U64: u64 = 0xC0DE;
 const EE_HOR_COEFF_U64: u64 = 34_359_738_336; // 2^35
-const T16_TABLE_SIZE: u32 = 4096;
-const T15_TABLE_SIZE: u32 = 1024;
+const T16_TABLE_SIZE: u32 = 1 << 16;
+const T15_TABLE_SIZE: u32 = 1 << 15;
 
 #[derive(Clone, Debug)]
 pub struct BaselineBNoteConfig {
@@ -91,6 +93,7 @@ pub enum BNoteFault {
 pub struct BaselineBNoteCircuit<F: Field> {
     pub repetitions: usize,
     pub fault: Option<BNoteFault>,
+    pub input_profile: InputProfile,
     marker: PhantomData<F>,
 }
 
@@ -109,6 +112,18 @@ impl<F: Field + From<u64>> BaselineBNoteCircuit<F> {
     }
 
     pub fn with_fault(repetitions: usize, fault: Option<BNoteFault>) -> Self {
+        Self::with_fault_and_profile(repetitions, fault, InputProfile::Standard)
+    }
+
+    pub fn with_profile(repetitions: usize, input_profile: InputProfile) -> Self {
+        Self::with_fault_and_profile(repetitions, None, input_profile)
+    }
+
+    pub fn with_fault_and_profile(
+        repetitions: usize,
+        fault: Option<BNoteFault>,
+        input_profile: InputProfile,
+    ) -> Self {
         assert!(
             repetitions > 0,
             "repetitions must be positive for B_note baseline circuit"
@@ -116,6 +131,7 @@ impl<F: Field + From<u64>> BaselineBNoteCircuit<F> {
         Self {
             repetitions,
             fault,
+            input_profile,
             marker: PhantomData,
         }
     }
@@ -156,6 +172,16 @@ impl<F: Field + From<u64>> BaselineBNoteCircuit<F> {
         let q4 = ((v >> 64) & 0x3) as u8;
         (q0, q1, q2, q3, q4)
     }
+
+    fn shared_family(family: Family) -> SharedFamily {
+        match family {
+            Family::Inv => SharedFamily::Inv,
+            Family::Ef => SharedFamily::Ef,
+            Family::Ee => SharedFamily::Ee,
+            Family::Hor => SharedFamily::Hor,
+            Family::Car => SharedFamily::Car,
+        }
+    }
 }
 
 impl<F: Field + From<u64>> Circuit<F> for BaselineBNoteCircuit<F> {
@@ -166,6 +192,7 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineBNoteCircuit<F> {
         Self {
             repetitions: self.repetitions,
             fault: self.fault,
+            input_profile: self.input_profile,
             marker: PhantomData,
         }
     }
@@ -505,38 +532,16 @@ impl<F: Field + From<u64>> Circuit<F> for BaselineBNoteCircuit<F> {
                             global_row += 1;
 
                             let q_is_66 = matches!(family, Family::Inv | Family::Ee | Family::Hor);
-                            // Keep witnesses within deterministic small bounds so lookup ranges
-                            // stay valid across large repetition counts during fixed-k sweeps.
-                            let base = ((rep as u32) * 17 + local_idx as u32) % 100;
-
-                            let (mut x_u32, mut y_u32, mut z_u32, mut q_u128) = match family {
-                                Family::Inv => {
-                                    let x = 1000 + base;
-                                    // q*x = x with q=1.
-                                    (x, 1, x, 1u128)
-                                }
-                                Family::Ef => {
-                                    let x = 70 + base;
-                                    let y = 2;
-                                    let z = x.saturating_mul(y);
-                                    (x, y, z, 123 + base as u128)
-                                }
-                                Family::Ee => {
-                                    // Keep y=0 so z=0 remains canonical under large coefficient.
-                                    let x = 77 + base;
-                                    (x, 0, 0, 1u128)
-                                }
-                                Family::Hor => {
-                                    let x = 211 + base;
-                                    (x, 0, 0, 2u128)
-                                }
-                                Family::Car => {
-                                    let x = 33 + base;
-                                    let y = 55 + base;
-                                    let z = x + y + 5;
-                                    (x, y, z, 222 + base as u128)
-                                }
-                            };
+                            let row = shared_row_witness(
+                                rep,
+                                Self::shared_family(family),
+                                local_idx,
+                                self.input_profile,
+                            );
+                            let mut x_u32 = row.x;
+                            let mut y_u32 = row.y;
+                            let mut z_u32 = row.z;
+                            let mut q_u128 = row.q;
 
                             let mut digest = DIGEST_CONST_U64;
                             if !fault_applied {
@@ -696,9 +701,10 @@ mod tests {
     use super::{BNoteFault, BaselineBNoteCircuit};
     use halo2_proofs::dev::MockProver;
     use halo2_proofs::halo2curves::bn256::Fr;
+    use crate::shared_inputs::InputProfile;
 
     fn assert_rejected(circuit: BaselineBNoteCircuit<Fr>) {
-        let k = 13;
+        let k = 17;
         let prover = MockProver::run(k, &circuit, vec![]).expect("mock prover should build");
         assert!(
             prover.verify().is_err(),
@@ -709,7 +715,7 @@ mod tests {
     #[test]
     fn test_b_note_valid() {
         let circuit = BaselineBNoteCircuit::<Fr>::new(1);
-        let k = 13;
+        let k = 17;
         let prover = MockProver::run(k, &circuit, vec![]).expect("mock prover should build");
         prover.assert_satisfied();
     }
@@ -752,5 +758,19 @@ mod tests {
             1,
             Some(BNoteFault::InactiveRowZeroExtensionViolation),
         ));
+    }
+
+    #[test]
+    fn test_b_note_boundary_profile_valid() {
+        let circuit = BaselineBNoteCircuit::<Fr>::with_profile(1, InputProfile::Boundary);
+        let prover = MockProver::run(17, &circuit, vec![]).expect("mock prover should build");
+        prover.assert_satisfied();
+    }
+
+    #[test]
+    fn test_b_note_adversarial_profile_valid() {
+        let circuit = BaselineBNoteCircuit::<Fr>::with_profile(1, InputProfile::Adversarial);
+        let prover = MockProver::run(17, &circuit, vec![]).expect("mock prover should build");
+        prover.assert_satisfied();
     }
 }
