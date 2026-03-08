@@ -39,6 +39,23 @@ Prefer these files for the defended public timing claim:
 
 Older timing reports are not part of the tracked public tree for this package.
 
+## Latest parity-facing follow-up evidence
+
+For the newer shared-input parity-facing reruns, start with:
+
+- `docs/repeat_boundary_k17_small.md`
+- `docs/repeat_standard_k17_small.md`
+- `docs/repeat_boundary_k17_medium.md`
+- `docs/repeat_standard_k17_medium.md`
+- `docs/repeat_boundary_k17_s16.md`
+- `docs/repeat_standard_k17_s16.md`
+- `docs/repeat_boundary_k17_s32.md`
+- `docs/repeat_standard_k17_s32.md`
+- `docs/repeat_boundary_k18_s4520.md`
+- `docs/k_jump_capacity_sweep.md`
+
+These are follow-up benchmark artifacts for the shared-input, fixed-`k` parity-preparation path. They should still be read under the bounded instantiated-family claim boundary described in the manuscript and package notes.
+
 ## Contents
 
 - Rust benchmark project:

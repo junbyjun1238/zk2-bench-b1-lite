@@ -28,6 +28,12 @@ Important execution notes:
 For the public headline timing comparison inside that package, prefer:
 `post_manuscript_fullbench/docs/repeat_local_k13_public.md`
 
+For the latest shared-input parity-facing follow-up reports inside that package,
+prefer the `post_manuscript_fullbench/docs/repeat_*` reports for:
+- `k_run = 17` at `scale = 1,4,8,16,32`, and
+- the first post-jump validation at `k_run = 18`, `scale = 4520`,
+plus `post_manuscript_fullbench/docs/k_jump_capacity_sweep.md`.
+
 ## Scope
 
 - Backend: Halo2 (`halo2_proofs 0.3.2`)
