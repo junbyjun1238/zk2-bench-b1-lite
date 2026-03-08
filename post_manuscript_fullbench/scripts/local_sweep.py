@@ -58,9 +58,11 @@ def ratio(num: float, den: float) -> float:
     return num / den
 
 
-def to_md_table(rows: List[Dict], out_md: Path) -> None:
+def to_md_table(rows: List[Dict], out_md: Path, order_policy: str) -> None:
     lines = [
         "# Local A/B Sweep (full-local)",
+        "",
+        f"- order policy: `{order_policy}`",
         "",
         "| scale | A_prove_ms | B_prove_ms | B/A prove | A_verify_ms | B_verify_ms | B/A verify | A_peak_rss_mb | B_peak_rss_mb | B/A rss |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -89,6 +91,7 @@ def to_md_table(rows: List[Dict], out_md: Path) -> None:
             "- Both arms enforce the same row-family semantics.",
             "- `A_secure` uses explicit bit decomposition; `B_note` uses lookup-assisted binding.",
             "- This sweep is local-only (`full-local`) and intended for operational-fit baseline.",
+            "- With `alternate` ordering, even-indexed scales run B->A while odd-indexed scales run A->B.",
             "",
         ]
     )
@@ -104,6 +107,7 @@ def main() -> None:
     parser.add_argument("--lint-output", action="store_true")
     parser.add_argument("--require-cert", action="store_true")
     parser.add_argument("--k-run", type=int, default=None, help="Fixed k for full-local runs")
+    parser.add_argument("--order-policy", choices=["fixed-ab", "alternate"], default="alternate")
     args = parser.parse_args()
 
     scales = [int(x.strip()) for x in args.scales.split(",") if x.strip()]
@@ -116,28 +120,34 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     summary_rows: List[Dict] = []
-    for scale in scales:
+    for idx, scale in enumerate(scales):
         a_out = out_dir / f"a_secure_{args.mode}_{scale}.json"
         b_out = out_dir / f"b_note_{args.mode}_{scale}.json"
+        arm_order = ["A_secure", "B_note"]
+        if args.order_policy == "alternate" and idx % 2 == 1:
+            arm_order = ["B_note", "A_secure"]
 
-        run_bench(
-            arm="A_secure",
-            mode=args.mode,
-            scale=scale,
-            out_file=a_out,
-            require_cert=args.require_cert,
-            lint=args.lint_output,
-            k_run=args.k_run,
-        )
-        run_bench(
-            arm="B_note",
-            mode=args.mode,
-            scale=scale,
-            out_file=b_out,
-            require_cert=args.require_cert,
-            lint=args.lint_output,
-            k_run=args.k_run,
-        )
+        for arm in arm_order:
+            if arm == "A_secure":
+                run_bench(
+                    arm="A_secure",
+                    mode=args.mode,
+                    scale=scale,
+                    out_file=a_out,
+                    require_cert=args.require_cert,
+                    lint=args.lint_output,
+                    k_run=args.k_run,
+                )
+            else:
+                run_bench(
+                    arm="B_note",
+                    mode=args.mode,
+                    scale=scale,
+                    out_file=b_out,
+                    require_cert=args.require_cert,
+                    lint=args.lint_output,
+                    k_run=args.k_run,
+                )
 
         a = load_json(a_out)
         b = load_json(b_out)
@@ -169,6 +179,7 @@ def main() -> None:
 
     summary = {
         "mode": args.mode,
+        "order_policy": args.order_policy,
         "scales": scales,
         "rows": summary_rows,
     }
@@ -177,7 +188,7 @@ def main() -> None:
 
     out_md = Path(args.out_md)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    to_md_table(summary_rows, out_md)
+    to_md_table(summary_rows, out_md, order_policy=args.order_policy)
 
     print(f"wrote local sweep summary: {summary_path}")
     print(f"wrote local sweep table: {out_md}")

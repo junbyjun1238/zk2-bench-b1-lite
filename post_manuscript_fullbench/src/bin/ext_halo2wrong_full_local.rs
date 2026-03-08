@@ -19,6 +19,14 @@ use zcg_ab_bench::external_h2w::{
 const MIN_K: u32 = 10;
 const MAX_K: u32 = 21;
 
+#[derive(Debug)]
+struct Args {
+    scale: usize,
+    k_run_override: Option<u32>,
+    known_k_min: Option<u32>,
+    probe_k_min_only: bool,
+}
+
 fn catch_unwind_silent<F, R>(f: F) -> Result<R, Box<dyn std::any::Any + Send>>
 where
     F: FnOnce() -> R,
@@ -42,10 +50,12 @@ fn find_k_min(circuit: &ExternalH2W66BitCircuit<Fr>) -> Result<u32, String> {
     ))
 }
 
-fn parse_args() -> Result<(usize, Option<u32>), String> {
+fn parse_args() -> Result<Args, String> {
     let mut args = std::env::args().skip(1);
     let mut scale: usize = 1;
     let mut k_run_override: Option<u32> = None;
+    let mut known_k_min: Option<u32> = None;
+    let mut probe_k_min_only = false;
     while let Some(arg) = args.next() {
         if arg == "--scale" {
             let value = args
@@ -62,6 +72,16 @@ fn parse_args() -> Result<(usize, Option<u32>), String> {
                 .parse::<u32>()
                 .map_err(|_| format!("invalid --k-run value: {value}"))?;
             k_run_override = Some(parsed);
+        } else if arg == "--known-k-min" {
+            let value = args
+                .next()
+                .ok_or_else(|| "missing value for --known-k-min".to_string())?;
+            let parsed = value
+                .parse::<u32>()
+                .map_err(|_| format!("invalid --known-k-min value: {value}"))?;
+            known_k_min = Some(parsed);
+        } else if arg == "--probe-k-min" {
+            probe_k_min_only = true;
         } else {
             return Err(format!("unknown argument: {arg}"));
         }
@@ -69,7 +89,12 @@ fn parse_args() -> Result<(usize, Option<u32>), String> {
     if scale == 0 {
         return Err("--scale must be positive".to_string());
     }
-    Ok((scale, k_run_override))
+    Ok(Args {
+        scale,
+        k_run_override,
+        known_k_min,
+        probe_k_min_only,
+    })
 }
 
 fn main() {
@@ -80,14 +105,30 @@ fn main() {
 }
 
 fn run() -> Result<(), String> {
-    let (scale, k_run_override) = parse_args()?;
+    let args = parse_args()?;
+    let scale = args.scale;
+    let circuit = ExternalH2W66BitCircuit::<Fr>::new(scale);
+
+    if args.probe_k_min_only {
+        let k_min = find_k_min(&circuit)?;
+        println!("{{\"k_min\":{k_min}}}");
+        return Ok(());
+    }
 
     let synth_start = Instant::now();
-    let circuit = ExternalH2W66BitCircuit::<Fr>::new(scale);
     let synth_ms = synth_start.elapsed().as_secs_f64() * 1_000.0;
 
-    let k_min = find_k_min(&circuit)?;
-    let k_run = if let Some(v) = k_run_override {
+    let k_min = if let Some(v) = args.known_k_min {
+        if !(MIN_K..=MAX_K).contains(&v) {
+            return Err(format!(
+                "provided --known-k-min={v} is outside [{MIN_K}, {MAX_K}] for ext_halo2wrong"
+            ));
+        }
+        v
+    } else {
+        find_k_min(&circuit)?
+    };
+    let k_run = if let Some(v) = args.k_run_override {
         if v < k_min {
             return Err(format!(
                 "requested --k-run={v} is below k_min={k_min} for ext_halo2wrong at scale={scale}"

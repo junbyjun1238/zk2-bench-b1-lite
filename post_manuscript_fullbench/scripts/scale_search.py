@@ -389,7 +389,7 @@ def main() -> None:
     parser.add_argument(
         "--mode",
         default="full-local",
-        choices=["fast-structural", "full-local", "full-cloud"],
+        choices=["fast-structural", "full-local"],
     )
     parser.add_argument("--start-scale", type=int, default=2)
     parser.add_argument("--max-scale", type=int, default=256)

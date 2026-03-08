@@ -20,6 +20,40 @@ def safe_cmd_output(cmd):
         return "unknown"
 
 
+def resolve_default_manuscript() -> str:
+    candidates = [
+        Path("wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_option2.tex",
+        Path("core_papers/wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_repair_note.tex",
+        Path("core_papers/wrapper_note_repair_note.tex"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return path.as_posix()
+    return "wrapper_note_option2.tex"
+
+
+def machine_profile_string() -> str:
+    parts = [
+        f"os={platform.system()}",
+        f"release={platform.release()}",
+        f"arch={platform.machine()}",
+    ]
+    processor = platform.processor()
+    if processor:
+        parts.append(f"cpu={processor}")
+    if psutil is not None:
+        try:
+            parts.append(f"logical_cpu={psutil.cpu_count(logical=True)}")
+            parts.append(f"physical_cpu={psutil.cpu_count(logical=False)}")
+            vm = psutil.virtual_memory()
+            parts.append(f"ram_gb={vm.total / (1024.0 ** 3):.1f}")
+        except Exception:
+            pass
+    return ";".join(parts)
+
+
 def _extract_last_json_object(text: str) -> dict:
     for line in reversed(text.splitlines()):
         line = line.strip()
@@ -64,25 +98,29 @@ def _run_with_peak_rss(cmd):
 
 def _bin_path(bin_name: str) -> Path:
     ext = ".exe" if platform.system().lower().startswith("win") else ""
-    return Path("target") / "debug" / f"{bin_name}{ext}"
+    return Path("target") / "release" / f"{bin_name}{ext}"
 
 
-def _ensure_bin(bin_name: str) -> Path:
+def _ensure_bin(bin_name: str):
     path = _bin_path(bin_name)
-    subprocess.run(
-        ["cargo", "build", "--quiet", "--bin", bin_name],
-        check=True,
-    )
+    subprocess.run(["cargo", "build", "--release", "--quiet", "--bin", bin_name], check=True)
     if not path.exists():
         raise RuntimeError(f"compiled binary not found: {path}")
     return path
 
 
+def _probe_k_min(bin_name: str, scale: int) -> int:
+    bin_path = _ensure_bin(bin_name)
+    cmd = [str(bin_path), "--scale", str(scale), "--probe-k-min"]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if proc.returncode != 0:
+        stderr_tail = (proc.stderr or "").strip().splitlines()[-1] if (proc.stderr or "").strip() else "unknown error"
+        raise RuntimeError(f"{bin_name} k_min probe failed: {stderr_tail}")
+    payload = _extract_last_json_object(proc.stdout or "")
+    return int(payload["k_min"])
+
+
 def build_a_secure_fast_structural(scale: int) -> dict:
-    # A_secure row-family equivalent structure (src/baseline_a/mod.rs):
-    # - explicit bit decomposition for x/y/z/q on all active rows
-    # - no-equality guards for x/y/z
-    # - family equations + digest binding + inactive-row zero extension
     rows_per_rep = 29
     physical_rows = rows_per_rep * scale
     k_min = max(10, math.ceil(math.log2(max(physical_rows, 2))))
@@ -109,8 +147,7 @@ def build_a_secure_fast_structural(scale: int) -> dict:
         "status": "structural-ok",
         "notes": (
             "A_secure fast-structural counters from row-family-equivalent explicit "
-            "bit decomposition baseline; "
-            "no proof generation in this mode"
+            "bit decomposition baseline; no proof generation in this mode"
         ),
     }
 
@@ -151,14 +188,18 @@ def build_b_note_fast_structural(scale: int) -> dict:
 
 
 def build_a_secure_full_local(scale: int, k_run: int | None = None) -> dict:
+    k_min = _probe_k_min("a_secure_full_local", scale)
     bin_path = _ensure_bin("a_secure_full_local")
+    effective_k_run = k_run if k_run is not None else k_min
     cmd = [
         str(bin_path),
         "--scale",
         str(scale),
+        "--known-k-min",
+        str(k_min),
+        "--k-run",
+        str(effective_k_run),
     ]
-    if k_run is not None:
-        cmd.extend(["--k-run", str(k_run)])
     rc, stdout, stderr, peak_rss_mb = _run_with_peak_rss(cmd)
     stdout = stdout or ""
     stderr = stderr or ""
@@ -168,18 +209,23 @@ def build_a_secure_full_local(scale: int, k_run: int | None = None) -> dict:
 
     payload = _extract_last_json_object(stdout)
     payload["peak_rss_mb"] = peak_rss_mb
+    payload["notes"] = payload["notes"] + "; release-build runner; k_min probed in a separate untimed pass"
     return payload
 
 
 def build_b_note_full_local(scale: int, k_run: int | None = None) -> dict:
+    k_min = _probe_k_min("b_note_full_local", scale)
     bin_path = _ensure_bin("b_note_full_local")
+    effective_k_run = k_run if k_run is not None else k_min
     cmd = [
         str(bin_path),
         "--scale",
         str(scale),
+        "--known-k-min",
+        str(k_min),
+        "--k-run",
+        str(effective_k_run),
     ]
-    if k_run is not None:
-        cmd.extend(["--k-run", str(k_run)])
     rc, stdout, stderr, peak_rss_mb = _run_with_peak_rss(cmd)
     stdout = stdout or ""
     stderr = stderr or ""
@@ -189,37 +235,12 @@ def build_b_note_full_local(scale: int, k_run: int | None = None) -> dict:
 
     payload = _extract_last_json_object(stdout)
     payload["peak_rss_mb"] = peak_rss_mb
+    payload["notes"] = payload["notes"] + "; release-build runner; k_min probed in a separate untimed pass"
     return payload
 
 
-def build_mock_payload(scale: int) -> dict:
-    return {
-        "n": scale,
-        "R_hor": scale * 2,
-        "R_car": scale,
-        "k_min": 17,
-        "k_run": 17,
-        "logical_lookup_cells": 152,
-        "logical_mul_constraints": 56,
-        "logical_lin_constraints": 56,
-        "physical_rows": 72,
-        "advice_cols": 8,
-        "fixed_cols": 4,
-        "instance_cols": 1,
-        "synth_ms": 1.0,
-        "keygen_vk_ms": 1.0,
-        "keygen_pk_ms": 1.0,
-        "prove_ms": 1.0,
-        "verify_ms": 1.0,
-        "peak_rss_mb": 128.0,
-        "proof_bytes": 1024,
-        "status": "mock-ok",
-        "notes": "mock run only; no Halo2 circuit execution",
-    }
-
-
 def main():
-    parser = argparse.ArgumentParser(description="Mock A/B benchmark runner")
+    parser = argparse.ArgumentParser(description="A/B benchmark runner for structural and full-local Halo2 measurements")
     parser.add_argument("--arm", choices=["U", "A_secure", "B_note"], required=True)
     parser.add_argument(
         "--mode",
@@ -234,12 +255,16 @@ def main():
     parser.add_argument("--require-cert", action="store_true")
     parser.add_argument("--lint-output", action="store_true")
     parser.add_argument("--cert-path", default="certificates/public_certificate.json")
-    parser.add_argument("--manuscript", default="core_papers/wrapper_note_option2.tex")
+    parser.add_argument("--manuscript", default=None)
     parser.add_argument("--backend-instance", default="certificates/h2dq_backend_instance.json")
     args = parser.parse_args()
 
     print(f"running... arm={args.arm}, mode={args.mode}, scale={args.scale}")
 
+    if args.mode == "full-cloud":
+        raise RuntimeError("full-cloud is not implemented in this harness; run full-local on the target machine instead")
+
+    manuscript = args.manuscript or resolve_default_manuscript()
     commit_hash = safe_cmd_output(["git", "rev-parse", "HEAD"])
     rust_version = safe_cmd_output(["rustc", "--version"])
     backend_commit = safe_cmd_output(["git", "rev-parse", "HEAD"])
@@ -251,7 +276,7 @@ def main():
             "--certificate",
             args.cert_path,
             "--manuscript",
-            args.manuscript,
+            manuscript,
             "--backend-instance",
             args.backend_instance,
         ]
@@ -268,7 +293,7 @@ def main():
     elif args.arm == "B_note" and args.mode == "full-local":
         payload = build_b_note_full_local(args.scale, args.k_run)
     else:
-        payload = build_mock_payload(args.scale)
+        raise RuntimeError(f"unsupported arm/mode combination: arm={args.arm}, mode={args.mode}")
 
     result = {
         "arm": args.arm,
@@ -298,7 +323,7 @@ def main():
         "commit_hash": commit_hash,
         "rust_version": rust_version,
         "backend_commit": backend_commit,
-        "machine_profile": f"{platform.system()}-{platform.machine()}",
+        "machine_profile": machine_profile_string(),
         "status": payload["status"],
         "notes": payload["notes"],
     }

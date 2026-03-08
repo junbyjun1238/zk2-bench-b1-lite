@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import math
-import subprocess
 from pathlib import Path
 from statistics import mean, pstdev
-from typing import Dict, List
-
+from typing import List
+import subprocess
 
 NUMERIC_KEYS = [
     "keygen_vk_ms",
@@ -68,15 +66,16 @@ def summarize(samples: List[dict]) -> dict:
 
 
 def format_pm(mu: float, sigma: float, digits: int = 2) -> str:
-    return f"{mu:.{digits}f} ± {sigma:.{digits}f}"
+    return f"{mu:.{digits}f} +/- {sigma:.{digits}f}"
 
 
-def build_md(rows: List[dict], out_path: Path, repeats: int, k_run: int) -> None:
+def build_md(rows: List[dict], out_path: Path, repeats: int, k_run: int, order_policy: str) -> None:
     lines = [
         "# Local Repeat Bench (full-local, fixed-k)",
         "",
         f"- repeats per point: `{repeats}`",
         f"- k_run fixed: `{k_run}`",
+        f"- order policy: `{order_policy}`",
         "",
         "| scale | A prove (ms) | B prove (ms) | B/A prove | A verify (ms) | B verify (ms) | B/A verify | A keygen(vk+pk) ms | B keygen(vk+pk) ms | A proof bytes | B proof bytes |",
         "|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -109,6 +108,7 @@ def build_md(rows: List[dict], out_path: Path, repeats: int, k_run: int) -> None
             "Notes:",
             "- Ratios are computed from mean metrics (B_mean / A_mean).",
             "- `proof_bytes` should be deterministic per arm for fixed `k` and circuit shape.",
+            "- With `alternate` ordering, odd repeats run A->B and even repeats run B->A.",
             "",
         ]
     )
@@ -124,6 +124,7 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--out-dir", default="benches/repeat_local")
     parser.add_argument("--out-md", default="docs/repeat_local_report.md")
+    parser.add_argument("--order-policy", choices=["fixed-ab", "alternate"], default="alternate")
     args = parser.parse_args()
 
     if args.repeats < 1:
@@ -145,8 +146,14 @@ def main() -> None:
         for rep in range(1, args.repeats + 1):
             a_out = runs_dir / f"a_secure_s{scale}_r{rep}.json"
             b_out = runs_dir / f"b_note_s{scale}_r{rep}.json"
-            a_samples.append(run_once("A_secure", scale, args.k_run, a_out, require_cert=False))
-            b_samples.append(run_once("B_note", scale, args.k_run, b_out, require_cert=True))
+            arm_order = ["A_secure", "B_note"]
+            if args.order_policy == "alternate" and rep % 2 == 0:
+                arm_order = ["B_note", "A_secure"]
+            for arm in arm_order:
+                if arm == "A_secure":
+                    a_samples.append(run_once("A_secure", scale, args.k_run, a_out, require_cert=False))
+                else:
+                    b_samples.append(run_once("B_note", scale, args.k_run, b_out, require_cert=True))
 
         a_sum = summarize(a_samples)
         b_sum = summarize(b_samples)
@@ -167,6 +174,7 @@ def main() -> None:
         "mode": "full-local",
         "k_run": args.k_run,
         "repeats": args.repeats,
+        "order_policy": args.order_policy,
         "scales": scales,
         "rows": rows,
     }
@@ -175,7 +183,7 @@ def main() -> None:
 
     out_md = Path(args.out_md)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    build_md(rows, out_md, repeats=args.repeats, k_run=args.k_run)
+    build_md(rows, out_md, repeats=args.repeats, k_run=args.k_run, order_policy=args.order_policy)
 
     print(f"wrote repeat summary: {summary_path}")
     print(f"wrote repeat report: {out_md}")

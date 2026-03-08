@@ -57,15 +57,26 @@ def _run_with_peak_rss(cmd: list[str], cwd: Path | None = None):
 
 def _bin_path(bin_name: str) -> Path:
     ext = ".exe" if platform.system().lower().startswith("win") else ""
-    return Path("target") / "debug" / f"{bin_name}{ext}"
+    return Path("target") / "release" / f"{bin_name}{ext}"
 
 
 def _ensure_bin(bin_name: str):
-    subprocess.run(["cargo", "build", "--quiet", "--bin", bin_name], check=True)
+    subprocess.run(["cargo", "build", "--release", "--quiet", "--bin", bin_name], check=True)
     path = _bin_path(bin_name)
     if not path.exists():
         raise RuntimeError(f"compiled binary not found: {path}")
     return path
+
+
+def _probe_k_min(bin_name: str, scale: int) -> int:
+    bin_path = _ensure_bin(bin_name)
+    cmd = [str(bin_path), "--scale", str(scale), "--probe-k-min"]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    if proc.returncode != 0:
+        tail = proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else "unknown error"
+        raise RuntimeError(f"{bin_name} k_min probe failed: {tail}")
+    payload = _extract_last_json_object(proc.stdout or "")
+    return int(payload["k_min"])
 
 
 def _run_ab(arm: str, scale: int, k_run: int, out_path: Path, require_cert: bool):
@@ -80,24 +91,38 @@ def _run_ab(arm: str, scale: int, k_run: int, out_path: Path, require_cert: bool
         str(scale),
         "--k-run",
         str(k_run),
+        "--lint-output",
         "--out",
         str(out_path),
     ]
     if require_cert and arm == "B_note":
         cmd.append("--require-cert")
     subprocess.run(cmd, check=True)
-    return json.loads(out_path.read_text(encoding="utf-8"))
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    if payload.get("commit_hash") == "unknown":
+        raise RuntimeError(f"{arm} output has unknown commit_hash: {out_path}")
+    return payload
 
 
 def _run_ext(scale: int, k_run: int, out_path: Path):
+    k_min = _probe_k_min("ext_halo2wrong_full_local", scale)
     bin_path = _ensure_bin("ext_halo2wrong_full_local")
-    cmd = [str(bin_path), "--scale", str(scale), "--k-run", str(k_run)]
+    cmd = [
+        str(bin_path),
+        "--scale",
+        str(scale),
+        "--known-k-min",
+        str(k_min),
+        "--k-run",
+        str(k_run),
+    ]
     rc, stdout, stderr, peak_rss_mb = _run_with_peak_rss(cmd)
     if rc != 0:
         tail = stderr.strip().splitlines()[-1] if stderr.strip() else "unknown error"
         raise RuntimeError(f"ext_halo2wrong_full_local failed: {tail}")
     payload = _extract_last_json_object(stdout)
     payload["peak_rss_mb"] = peak_rss_mb
+    payload["notes"] = payload["notes"] + "; release-build runner; k_min probed in a separate untimed pass"
     out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return payload
 
@@ -115,6 +140,7 @@ def main():
     parser.add_argument("--out-dir", default="benches/external_h2w_compare")
     parser.add_argument("--report", default="docs/external_h2w_compare.md")
     parser.add_argument("--require-cert", action="store_true")
+    parser.add_argument("--order-policy", choices=["fixed-abe", "alternate"], default="alternate")
     args = parser.parse_args()
 
     scales = [int(x.strip()) for x in args.scales.split(",") if x.strip()]
@@ -122,14 +148,27 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     rows = []
-    for scale in scales:
+    for idx, scale in enumerate(scales):
         a_path = out_dir / f"a_secure_s{scale}.json"
         b_path = out_dir / f"b_note_s{scale}.json"
         e_path = out_dir / f"ext_h2w_s{scale}.json"
 
-        a = _run_ab("A_secure", scale, args.k_run, a_path, require_cert=False)
-        b = _run_ab("B_note", scale, args.k_run, b_path, require_cert=args.require_cert)
-        e = _run_ext(scale, args.k_run, e_path)
+        order = ["A_secure", "B_note", "ext_halo2wrong"]
+        if args.order_policy == "alternate" and idx % 2 == 1:
+            order = ["B_note", "A_secure", "ext_halo2wrong"]
+
+        payloads = {}
+        for arm in order:
+            if arm == "A_secure":
+                payloads[arm] = _run_ab("A_secure", scale, args.k_run, a_path, require_cert=False)
+            elif arm == "B_note":
+                payloads[arm] = _run_ab("B_note", scale, args.k_run, b_path, require_cert=args.require_cert)
+            else:
+                payloads[arm] = _run_ext(scale, args.k_run, e_path)
+
+        a = payloads["A_secure"]
+        b = payloads["B_note"]
+        e = payloads["ext_halo2wrong"]
 
         rows.append(
             {
@@ -147,6 +186,7 @@ def main():
     summary = {
         "mode": "full-local",
         "k_run": args.k_run,
+        "order_policy": args.order_policy,
         "scales": scales,
         "rows": rows,
     }
@@ -157,6 +197,7 @@ def main():
         "",
         f"- k_run: `{args.k_run}`",
         f"- scales: `{','.join(str(s) for s in scales)}`",
+        f"- order policy: `{args.order_policy}`",
         "",
         "## Prove/Verify Time Table (ms)",
         "",

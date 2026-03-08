@@ -56,6 +56,20 @@ EXPECTED_FAMILIES = {
 }
 
 
+def resolve_default_manuscript() -> str:
+    candidates = [
+        Path("wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_option2.tex",
+        Path("core_papers/wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_repair_note.tex",
+        Path("core_papers/wrapper_note_repair_note.tex"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return path.as_posix()
+    return "wrapper_note_option2.tex"
+
+
 def parse_int(value) -> int:
     if isinstance(value, int):
         return value
@@ -641,7 +655,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--manuscript",
-        default="wrapper_note_option2.tex",
+        default=None,
         help="Path to manuscript file for digest binding checks",
     )
     parser.add_argument(
@@ -657,7 +671,12 @@ def main() -> int:
     args = parser.parse_args()
 
     cert_path = Path(args.certificate)
-    manuscript_path = Path(args.manuscript) if args.manuscript else None
+    manuscript_value = args.manuscript or resolve_default_manuscript()
+    manuscript_path = Path(manuscript_value) if manuscript_value else None
+
+    if manuscript_path is not None and not manuscript_path.exists():
+        print(f"Certificate validation FAILED:\n1. manuscript file missing: {manuscript_path}")
+        return 1
 
     if args.update_payload_digest:
         update_payload_digest(cert_path, manuscript_path)

@@ -6,6 +6,21 @@ import json
 import subprocess
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+
+def resolve_default_manuscript() -> str:
+    candidates = [
+        Path("wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_option2.tex",
+        Path("core_papers/wrapper_note_option2.tex"),
+        Path("..") / "wrapper_note_repair_note.tex",
+        Path("core_papers/wrapper_note_repair_note.tex"),
+    ]
+    for path in candidates:
+        if path.exists():
+            return path.as_posix()
+    return "wrapper_note_option2.tex"
 
 
 def run_checker(certificate: str, manuscript: str, backend_instance: str) -> tuple[int, str, str]:
@@ -27,12 +42,13 @@ def run_checker(certificate: str, manuscript: str, backend_instance: str) -> tup
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run certificate/backend binding checks")
     parser.add_argument("--certificate", default="certificates/public_certificate.json")
-    parser.add_argument("--manuscript", default="core_papers/wrapper_note_option2.tex")
+    parser.add_argument("--manuscript", default=None)
     parser.add_argument("--backend-instance", default="certificates/h2dq_backend_instance.json")
     parser.add_argument("--json-out", default="")
     args = parser.parse_args()
 
-    code, out, err = run_checker(args.certificate, args.manuscript, args.backend_instance)
+    manuscript = args.manuscript or resolve_default_manuscript()
+    code, out, err = run_checker(args.certificate, manuscript, args.backend_instance)
     status = "ok" if code == 0 else "fail"
 
     report = {
@@ -40,7 +56,7 @@ def main() -> int:
         "status": status,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "certificate": args.certificate,
-        "manuscript": args.manuscript,
+        "manuscript": manuscript,
         "backend_instance": args.backend_instance,
         "stdout": out,
         "stderr": err,

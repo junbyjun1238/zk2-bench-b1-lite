@@ -26,6 +26,8 @@ These are the current tracked scripts intended for audit and re-execution:
 
 The script set above matches the latest workspace versions used for the current benchmark package.
 Exploratory fixed-`k` output snapshots from earlier iterations were removed from the tracked public tree.
+Reviewer-facing timing runs now use release binaries, not debug binaries.
+The `full-cloud` mode is intentionally disabled; cloud machines should execute the same `full-local` path.
 
 ## Canonical public headline evidence
 
@@ -73,6 +75,8 @@ Fixed-k local sweep report:
 ```bash
 python scripts/local_fixedk_fullbench.py --k-run 13 --scales 16,24,32 --out-dir benches/fullbench_local_fixedk_current --out-md docs/fullbench_local_fixedk_current.md
 ```
+
+This command generates a fresh fixed-k sweep snapshot on demand. It is not a tracked canonical public output.
 
 External comparison:
 
