@@ -8,6 +8,14 @@ Scope:
 - external comparison against the `halo2wrong` decomposition baseline
 - benchmark reports and raw JSON outputs
 
+Canonical public headline evidence in this package:
+- `docs/repeat_local_k13_public.md`
+- `benches/repeat_local_k13_public/summary.json`
+
+These files are the preferred public source for the headline timing ratio claim.
+Older timing reports in this package should be treated as exploratory snapshots,
+not as the canonical public headline table.
+
 ## Contents
 
 - Rust benchmark project:
@@ -25,6 +33,8 @@ Scope:
   - `docs/results_schema.json`
   - `docs/security_equivalence_checklist.md`
 - Reports / outputs:
+  - `docs/repeat_local_k13_public.md`
+  - `benches/repeat_local_k13_public/`
   - `docs/fullbench_local_fixedk*.md`
   - `docs/external_h2w_compare.md`
   - `benches/fullbench_local_fixedk*`
@@ -46,4 +56,5 @@ python scripts/run_external_compare.py --k-run 17 --scales 8,16 --out-dir benche
 
 Notes:
 - These results were produced after the manuscript draft and should be read as follow-up implementation evidence, not as part of the theorem claim in the paper.
+- The safest wording is: `bounded instantiated family comparison`, not a claim of full-domain semantic equivalence across all wrapper realizations.
 - The manuscript-pinned artifact package remains the root-level package in this repository.

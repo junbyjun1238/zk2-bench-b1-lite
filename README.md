@@ -13,6 +13,9 @@ Follow-up full local benchmark materials produced after the manuscript draft
 are available under:
 `post_manuscript_fullbench/`
 
+For the public headline timing comparison inside that package, prefer:
+`post_manuscript_fullbench/docs/repeat_local_k13_public.md`
+
 ## Scope
 
 - Backend: Halo2 (`halo2_proofs 0.3.2`)
