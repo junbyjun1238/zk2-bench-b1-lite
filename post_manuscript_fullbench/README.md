@@ -52,9 +52,13 @@ For the newer shared-input parity-facing reruns, start with:
 - `docs/repeat_boundary_k17_s32.md`
 - `docs/repeat_standard_k17_s32.md`
 - `docs/repeat_boundary_k18_s4520.md`
+- `docs/repeat_boundary_k18_s4520_r3.md`
 - `docs/k_jump_capacity_sweep.md`
+- `docs/capacity_frontier_scope.md`
+- `docs/provenance_note.md`
 
 These are follow-up benchmark artifacts for the shared-input, fixed-`k` parity-preparation path. They should still be read under the bounded instantiated-family claim boundary described in the manuscript and package notes.
+The capacity-frontier memo is harness-specific, not a universal production-sizing recommendation. The provenance note explains why the raw run JSON commit hashes are grouped by generation commit rather than matching the final publishing tree HEAD.
 
 ## Contents
 
