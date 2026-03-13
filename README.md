@@ -4,8 +4,8 @@ This MIT-licensed repository is the public base for the BN254 deferred-quotient
 exactness repair work. It serves two related but distinct roles:
 
 - a **Halo2-facing verification and benchmark package** under
-  `post_manuscript_fullbench/`, including a minimal reusable integration
-  surface for the released `A_secure` and `B_note` circuits, and
+  `post_manuscript_fullbench/`, including a reusable real prove/verify
+  integration surface for the released `A_secure` and `B_note` circuits, and
 - the **manuscript-pinned companion artifact** for the original repair note,
   including checker inputs, backend manifests, and manuscript-side schema
   materials.

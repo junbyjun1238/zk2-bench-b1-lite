@@ -1,18 +1,22 @@
-﻿# Wrapper-Level Parity Requirements Before the Next Headline Rerun
+﻿# Wrapper-Level Parity Status for the Current Public Reruns
 
-## Purpose
+This note records the wrapper-level parity conditions satisfied by the current
+public reruns. The purpose is to show that the published `A_secure` vs
+`B_note` comparisons are using the same measured proof path rather than
+silently comparing different backend surfaces.
 
-This note records the minimum wrapper-level parity assumptions that must hold before the next benchmark is presented as stronger than a bounded instantiated-family comparison.
+The immediate goal is not a full backend-soundness theorem. The goal is
+narrower:
 
-The immediate goal is not a full backend-soundness theorem. The goal is narrower:
+- prevent the current public reruns from being attacked as a comparison of
+  different proof paths rather than different circuit encodings.
 
-- prevent the next benchmark from being attacked as a comparison of different proof paths rather than different circuit encodings.
-
-## Minimum requirements
+## Current satisfied conditions
 
 ### W0. Same proving / verification API path
 
-Both arms must go through the same proving and verification path exposed by the current harness:
+The current published reruns send both arms through the same proving and
+verification path exposed by the harness:
 
 - same `full-local` runner mode,
 - same `create_proof` / `verify_proof` backend path,
@@ -20,7 +24,7 @@ Both arms must go through the same proving and verification path exposed by the 
 - same commitment backend,
 - same parameter family.
 
-In the current harness that means:
+In the current harness this means:
 
 - same KZG backend,
 - same Blake2b transcript family,
@@ -28,9 +32,10 @@ In the current harness that means:
 
 ### W1. Same public-input routing contract
 
-If either arm changes how public inputs are routed into the circuit or proof invocation, the benchmark stops being apples-to-apples.
+If either arm changes how public inputs are routed into the circuit or proof
+invocation, the benchmark stops being apples-to-apples.
 
-Before the next rerun, both arms must continue to use:
+The current public reruns use:
 
 - the same number of instance columns,
 - the same empty/non-empty public-input shape for the measured path,
@@ -38,20 +43,20 @@ Before the next rerun, both arms must continue to use:
 
 ### W2. Same fixed-k measurement contract
 
-For each reported comparison point:
+For each reported comparison point in the public package:
 
-- both arms must run under the same declared `k_run`,
-- both arms must expose the same `k_min` discovery semantics,
-- both arms must report those values in the same output schema.
+- both arms run under the same declared `k_run`,
+- both arms expose the same `k_min` discovery semantics,
+- both arms report those values in the same output schema.
 
 ### W3. Same runner semantics and output schema
 
-The benchmark package must not compare:
+The public package does not compare:
 
 - one arm measured in a structural-only or mocked path,
 - against another arm measured in a real proving path.
 
-Both arms must produce the same schema fields and status semantics, including:
+Both arms produce the same schema fields and status semantics, including:
 
 - `k_min`, `k_run`,
 - `prove_ms`, `verify_ms`, `peak_rss_mb`,
@@ -60,23 +65,26 @@ Both arms must produce the same schema fields and status semantics, including:
 
 ### W4. Same input-profile labeling
 
-If the next rerun uses `standard`, `boundary`, or `adversarial` generated inputs, both arms must be measured under the same declared input profile.
+When the public reruns use `standard`, `boundary`, or `adversarial` generated
+inputs, both arms are measured under the same declared input profile.
 
-That profile must be visible in the run metadata or report text.
+That profile must stay visible in the run metadata or report text.
 
 ## What is not required yet
 
-This milestone does not require proving:
+This status note does not claim:
 
 - Fiat-Shamir closure,
 - backend extraction,
 - system-wide wrapper soundness.
 
-Those are paper-level or backend-level proof obligations, not immediate benchmark-alignment blockers.
+Those remain paper-level or backend-level proof obligations rather than
+benchmark-alignment claims.
 
-## Go / no-go rule
+## Publication rule for upgraded claims
 
-If any of the following diverges across arms, do not publish the rerun as an upgraded apples-to-apples benchmark:
+If any of the following diverges across arms in future reruns, do not publish
+the result as an upgraded apples-to-apples benchmark:
 
 - transcript family,
 - commitment backend,
@@ -85,9 +93,9 @@ If any of the following diverges across arms, do not publish the rerun as an upg
 - `k_run` contract,
 - input-profile label.
 
-## Bottom line
+## Bottom line for the current public package
 
-For the next rerun, wrapper-level parity means:
+For the current public reruns, wrapper-level parity means:
 
 - same proof system path,
 - same transcript family,
@@ -95,4 +103,5 @@ For the next rerun, wrapper-level parity means:
 - same fixed-k contract,
 - same input-profile declaration.
 
-If these hold, the remaining credibility argument can focus on semantic-domain parity rather than accidental harness asymmetry.
+Under those conditions, the remaining credibility argument can focus on
+semantic-domain parity rather than accidental harness asymmetry.

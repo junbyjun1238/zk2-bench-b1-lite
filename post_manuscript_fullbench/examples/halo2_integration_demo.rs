@@ -1,5 +1,6 @@
 use zcg_ab_bench::integration::{
-    build_b_note_circuit, integration_metadata, verify_mock, IntegrationArm,
+    build_b_note_circuit, integration_metadata, prove_and_verify_b_note_real, verify_mock,
+    IntegrationArm,
 };
 use zcg_ab_bench::shared_inputs::InputProfile;
 
@@ -18,7 +19,16 @@ fn main() {
     verify_mock(IntegrationArm::BNote, 1, InputProfile::Boundary)
         .expect("B_note integration demo should verify under MockProver");
 
+    let real_metrics = prove_and_verify_b_note_real(1, InputProfile::Boundary, Some(17))
+        .expect("B_note integration demo should verify under the real prove/verify path");
+
     let _circuit = build_b_note_circuit(1, InputProfile::Boundary);
     println!("mock_verification=ok");
-    println!("next_step=embed build_b_note_circuit(...) in your Halo2-side test harness or adapter crate");
+    println!(
+        "real_metrics={{k_run:{}, prove_ms:{:.2}, verify_ms:{:.2}, proof_bytes:{}}}",
+        real_metrics.k_run, real_metrics.prove_ms, real_metrics.verify_ms, real_metrics.proof_bytes
+    );
+    println!(
+        "next_step=embed build_b_note_circuit(...) or prove_and_verify_b_note_real(...) in your Halo2-side test harness or adapter crate"
+    );
 }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::baseline_a::{
     BaselineASecureCircuit, ADVICE_COLS as A_ADVICE_COLS, FIXED_COLS as A_FIXED_COLS,
     INSTANCE_COLS as A_INSTANCE_COLS, LIN_CONSTRAINTS_PER_REP as A_LIN_CONSTRAINTS_PER_REP,
@@ -12,7 +14,16 @@ use crate::baseline_b::{
 };
 use crate::shared_inputs::InputProfile;
 use halo2_proofs::dev::MockProver;
-use halo2_proofs::halo2curves::bn256::Fr;
+use halo2_proofs::halo2curves::bn256::{Bn256, Fr};
+use halo2_proofs::plonk::{create_proof, keygen_pk, keygen_vk, verify_proof, Circuit};
+use halo2_proofs::poly::commitment::ParamsProver;
+use halo2_proofs::poly::kzg::commitment::{KZGCommitmentScheme, ParamsKZG};
+use halo2_proofs::poly::kzg::multiopen::{ProverSHPLONK, VerifierSHPLONK};
+use halo2_proofs::poly::kzg::strategy::SingleStrategy;
+use halo2_proofs::transcript::{
+    Blake2bRead, Blake2bWrite, Challenge255, TranscriptReadBuffer, TranscriptWriterBuffer,
+};
+use rand_core::OsRng;
 
 pub type IntegrationField = Fr;
 
@@ -36,6 +47,16 @@ pub struct IntegrationMetadata {
     pub advice_cols: usize,
     pub fixed_cols: usize,
     pub instance_cols: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct RealProofMetrics {
+    pub k_run: u32,
+    pub keygen_vk_ms: f64,
+    pub keygen_pk_ms: f64,
+    pub prove_ms: f64,
+    pub verify_ms: f64,
+    pub proof_bytes: usize,
 }
 
 pub fn integration_metadata(arm: IntegrationArm) -> IntegrationMetadata {
@@ -114,11 +135,80 @@ pub fn verify_mock(
     }
 }
 
+fn prove_and_verify_real<C>(circuit: C, k_run: u32) -> Result<RealProofMetrics, String>
+where
+    C: Circuit<IntegrationField> + Clone,
+{
+    let params = ParamsKZG::<Bn256>::new(k_run);
+
+    let keygen_vk_start = Instant::now();
+    let vk = keygen_vk(&params, &circuit).map_err(|e| format!("keygen_vk failed: {e:?}"))?;
+    let keygen_vk_ms = keygen_vk_start.elapsed().as_secs_f64() * 1_000.0;
+
+    let keygen_pk_start = Instant::now();
+    let pk = keygen_pk(&params, vk, &circuit).map_err(|e| format!("keygen_pk failed: {e:?}"))?;
+    let keygen_pk_ms = keygen_pk_start.elapsed().as_secs_f64() * 1_000.0;
+
+    let prove_start = Instant::now();
+    let mut transcript = Blake2bWrite::<Vec<u8>, _, Challenge255<_>>::init(vec![]);
+    create_proof::<KZGCommitmentScheme<Bn256>, ProverSHPLONK<Bn256>, _, _, _, _>(
+        &params,
+        &pk,
+        &[circuit],
+        &[&[]],
+        OsRng,
+        &mut transcript,
+    )
+    .map_err(|e| format!("create_proof failed: {e:?}"))?;
+    let proof = transcript.finalize();
+    let prove_ms = prove_start.elapsed().as_secs_f64() * 1_000.0;
+
+    let verify_start = Instant::now();
+    let strategy = SingleStrategy::new(&params);
+    let mut verify_transcript = Blake2bRead::<_, _, Challenge255<_>>::init(&proof[..]);
+    verify_proof::<KZGCommitmentScheme<Bn256>, VerifierSHPLONK<Bn256>, _, _, _>(
+        &params,
+        pk.get_vk(),
+        strategy,
+        &[&[]],
+        &mut verify_transcript,
+    )
+    .map_err(|e| format!("verify_proof failed: {e:?}"))?;
+    let verify_ms = verify_start.elapsed().as_secs_f64() * 1_000.0;
+
+    Ok(RealProofMetrics {
+        k_run,
+        keygen_vk_ms,
+        keygen_pk_ms,
+        prove_ms,
+        verify_ms,
+        proof_bytes: proof.len(),
+    })
+}
+
+pub fn prove_and_verify_a_secure_real(
+    repetitions: usize,
+    input_profile: InputProfile,
+    k_run: Option<u32>,
+) -> Result<RealProofMetrics, String> {
+    let circuit = build_a_secure_circuit(repetitions, input_profile);
+    prove_and_verify_real(circuit, k_run.unwrap_or(A_SECURE_RECOMMENDED_K as u32))
+}
+
+pub fn prove_and_verify_b_note_real(
+    repetitions: usize,
+    input_profile: InputProfile,
+    k_run: Option<u32>,
+) -> Result<RealProofMetrics, String> {
+    let circuit = build_b_note_circuit(repetitions, input_profile);
+    prove_and_verify_real(circuit, k_run.unwrap_or(B_NOTE_RECOMMENDED_K as u32))
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        integration_metadata, verify_mock, IntegrationArm, A_SECURE_RECOMMENDED_K,
-        B_NOTE_RECOMMENDED_K,
+        integration_metadata, prove_and_verify_b_note_real, verify_mock, IntegrationArm,
+        A_SECURE_RECOMMENDED_K, B_NOTE_RECOMMENDED_K,
     };
     use crate::shared_inputs::InputProfile;
 
@@ -148,5 +238,13 @@ mod tests {
     fn test_integration_verify_mock_a_secure_standard() {
         verify_mock(IntegrationArm::ASecure, 1, InputProfile::Standard)
             .expect("A_secure standard integration path should verify");
+    }
+
+    #[test]
+    fn test_integration_real_proof_b_note_boundary() {
+        let metrics = prove_and_verify_b_note_real(1, InputProfile::Boundary, Some(17))
+            .expect("B_note real proof integration path should verify");
+        assert!(metrics.proof_bytes > 0);
+        assert!(metrics.prove_ms >= 0.0);
     }
 }

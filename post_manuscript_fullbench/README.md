@@ -2,15 +2,17 @@
 
 This MIT-licensed directory contains the developer-facing follow-up package
 produced after the manuscript draft. It combines the public benchmark harness,
-the parity-facing evidence bundle, and a minimal Halo2-facing integration
-surface for the released circuits.
+the parity-facing evidence bundle, and a small Halo2-facing integration
+surface for the released circuits, including a reusable real prove/verify
+adapter for the public proof path.
 
 Scope:
 - `A_secure` vs `B_note` under the shared benchmark contract
 - fixed-`k` local full benchmarks
 - repeat-based public timing collection
 - external comparison against the `halo2wrong` decomposition baseline
-- minimal Halo2-facing integration surface for the released `B_note` path
+- minimal Halo2-facing integration surface for the released `B_note` path,
+  including a reusable real prove/verify adapter
 - benchmark reports and raw JSON outputs
 
 If you are evaluating this package as tooling rather than only as a benchmark
@@ -53,16 +55,14 @@ released benchmark circuits:
 This is intentionally modest. It does not claim an external production
 integration yet. It is a minimal reference path showing that the released
 `B_note` circuit can be instantiated and verified from a library-facing surface
-instead of only through benchmark runners.
+instead of only through benchmark runners, and that the same public
+`create_proof` / `verify_proof` path can be reached from that surface.
 
 ## Canonical public headline evidence
 
-Prefer these files for the defended public timing claim:
-
-- `docs/repeat_local_k13_public.md`
-- `benches/repeat_local_k13_public/summary.json`
-
-Older timing reports are not part of the tracked public tree for this package.
+Prefer the shared-input follow-up reports below for the current defended public
+timing claim. The older `repeat_local_k13_public.md` table remains archived as
+an earlier reference snapshot, but it is no longer the main public entry point.
 
 ## Latest parity-facing follow-up evidence
 
@@ -127,6 +127,9 @@ Minimal Halo2 integration demo:
 ```bash
 cargo run --example halo2_integration_demo
 ```
+
+This example performs both a `MockProver` check and a real proof/verification
+cycle, so it is intentionally slower than the lightweight smoke tests.
 
 Fixed-k local sweep report:
 
