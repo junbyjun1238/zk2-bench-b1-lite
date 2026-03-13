@@ -7,6 +7,7 @@ Scope:
 - fixed-`k` local full benchmarks
 - repeat-based public timing collection
 - external comparison against the `halo2wrong` decomposition baseline
+- minimal Halo2-facing integration surface for the released `B_note` path
 - benchmark reports and raw JSON outputs
 
 ## Reviewer-facing scripts
@@ -29,6 +30,20 @@ Exploratory fixed-`k` output snapshots from earlier iterations were removed from
 Reviewer-facing timing runs now use release binaries, not debug binaries.
 The `full-cloud` mode is intentionally disabled; cloud machines should execute the same `full-local` path.
 Shared-input profiles are available via `--input-profile {standard,boundary,adversarial}`; `boundary` is the recommended first parity-facing profile.
+
+## Minimal Halo2 integration surface
+
+This package now also exposes a small Halo2-facing integration layer for the
+released benchmark circuits:
+
+- `src/integration.rs`
+- `examples/halo2_integration_demo.rs`
+- `docs/halo2_integration_example.md`
+
+This is intentionally modest. It does not claim an external production
+integration yet. It is a minimal reference path showing that the released
+`B_note` circuit can be instantiated and verified from a library-facing surface
+instead of only through benchmark runners.
 
 ## Canonical public headline evidence
 
@@ -81,6 +96,7 @@ The capacity-frontier memo is harness-specific, not a universal production-sizin
 - Reports / outputs:
   - `docs/repeat_local_k13_public.md`
   - `benches/repeat_local_k13_public/`
+  - `docs/halo2_integration_example.md`
 
 ## Reproduction
 
@@ -94,6 +110,12 @@ Shared-input boundary smoke rerun:
 
 ```bash
 python scripts/local_repeat_bench.py --scales 1 --k-run 17 --repeats 1 --input-profile boundary --out-dir benches/tmp_repeat_boundary --out-md docs/tmp_repeat_boundary.md
+```
+
+Minimal Halo2 integration demo:
+
+```bash
+cargo run --example halo2_integration_demo
 ```
 
 Fixed-k local sweep report:
