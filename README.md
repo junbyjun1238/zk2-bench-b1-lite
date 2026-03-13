@@ -1,21 +1,18 @@
-# BN254 Exactness Verification Tooling and Artifact Bundle
+# BN254 Exactness Companion Artifact and Benchmark Evidence
 
 This MIT-licensed repository is the public base for the BN254 deferred-quotient
 exactness repair work. It serves two related but distinct roles:
 
-- a **Halo2-facing verification and benchmark package** under
-  `post_manuscript_fullbench/`, including a reusable real prove/verify
-  integration surface for the released `A_secure` and `B_note` circuits, and
 - the **manuscript-pinned companion artifact** for the original repair note,
   including checker inputs, backend manifests, and manuscript-side schema
-  materials.
+  materials, and
+- the **benchmark-evidence archive** for the released follow-up Halo2 reruns
+  under `post_manuscript_fullbench/`.
 
-If you are approaching this repository as developer-facing tooling, start with:
+If you are approaching this work as developer-facing Halo2 tooling, use the
+standalone tooling repository instead:
 
-- `post_manuscript_fullbench/README.md`
-- `post_manuscript_fullbench/src/integration.rs`
-- `post_manuscript_fullbench/examples/halo2_integration_demo.rs`
-- `post_manuscript_fullbench/docs/halo2_integration_example.md`
+- `https://github.com/junbyjun1238/halo2-exactness-tooling`
 
 ## Current Public Assets
 
@@ -40,15 +37,9 @@ The paper is a theorem-level repair note for a concrete BN254/M31 family. The fo
 
 ## Repository Layout
 
-### 1. Halo2-facing verification and benchmark package
-
-This is the current developer-facing package for verification, benchmarking,
-and integration work built on the released `A_secure` and `B_note` circuits:
+### 1. Benchmark-evidence archive
 
 - `post_manuscript_fullbench/README.md`
-- `post_manuscript_fullbench/src/integration.rs`
-- `post_manuscript_fullbench/examples/halo2_integration_demo.rs`
-- `post_manuscript_fullbench/docs/halo2_integration_example.md`
 - `post_manuscript_fullbench/scripts/`
 - `post_manuscript_fullbench/docs/`
 
@@ -57,7 +48,6 @@ It contains:
 - release-binary Halo2 benchmark runners,
 - shared-input parity-facing reruns,
 - first post-jump validation,
-- a minimal reusable Halo2 integration surface,
 - provenance / capacity notes,
 - raw JSON outputs and reviewer-facing scripts.
 
