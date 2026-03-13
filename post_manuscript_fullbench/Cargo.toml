@@ -2,6 +2,8 @@
 name = "zcg_ab_bench"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+repository = "https://github.com/junbyjun1238/zk2-bench-b1-lite"
 
 [dependencies]
 # PSE halo2_proofs fork (Zcash/Halo2 ecosystem compatibility path)

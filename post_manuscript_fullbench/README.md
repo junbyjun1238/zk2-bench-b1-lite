@@ -1,6 +1,9 @@
-# Post-manuscript full-benchmark package
+# Post-manuscript Halo2 verification and benchmark package
 
-This directory contains the follow-up benchmark package produced after the manuscript draft.
+This MIT-licensed directory contains the developer-facing follow-up package
+produced after the manuscript draft. It combines the public benchmark harness,
+the parity-facing evidence bundle, and a minimal Halo2-facing integration
+surface for the released circuits.
 
 Scope:
 - `A_secure` vs `B_note` under the shared benchmark contract
@@ -9,6 +12,13 @@ Scope:
 - external comparison against the `halo2wrong` decomposition baseline
 - minimal Halo2-facing integration surface for the released `B_note` path
 - benchmark reports and raw JSON outputs
+
+If you are evaluating this package as tooling rather than only as a benchmark
+bundle, start with:
+
+- `src/integration.rs`
+- `examples/halo2_integration_demo.rs`
+- `docs/halo2_integration_example.md`
 
 ## Reviewer-facing scripts
 
@@ -135,6 +145,7 @@ python scripts/run_external_compare.py --k-run 17 --scales 8,16 --out-dir benche
 This script remains available for supplementary use, but its outputs are not tracked as part of the current public evidence bundle.
 
 Notes:
+- This package is MIT-licensed through the repository root `LICENSE`.
 - These results were produced after the manuscript draft and should be read as follow-up implementation evidence, not as part of the theorem claim in the paper.
 - The safest wording is: `bounded instantiated family comparison`, not a claim of full-domain semantic equivalence across all wrapper realizations.
 - The manuscript-pinned artifact package remains the root-level package in this repository.
